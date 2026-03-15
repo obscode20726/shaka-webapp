@@ -24,3 +24,9 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Override Next.js dev tools portal positioning to avoid forced top/left: 0 */
+nextjs-portal {
+  left: auto !important;
+  top: auto !important;
+}
