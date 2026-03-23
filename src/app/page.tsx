@@ -1,10 +1,23 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
-import Services from "@/components/Services";
-import HowItWorks from "@/components/HowItWorks";
-import Testimonials from "@/components/Testimonials";
-import CTA from "@/components/CTA";
+import dynamic from "next/dynamic";
 import Footer from "@/components/Footer";
+
+const Services = dynamic(() => import("@/components/Services"), {
+  loading: () => <div className="py-12 sm:py-16 text-center">Loading services...</div>,
+});
+
+const HowItWorks = dynamic(() => import("@/components/HowItWorks"), {
+  loading: () => <div className="py-12 sm:py-16 text-center">Loading how it works...</div>,
+});
+
+const Testimonials = dynamic(() => import("@/components/Testimonials"), {
+  loading: () => <div className="py-12 sm:py-16 text-center">Loading testimonials...</div>,
+});
+
+const CTA = dynamic(() => import("@/components/CTA"), {
+  loading: () => <div className="py-12 sm:py-16 text-center">Loading CTA...</div>,
+});
 
 export default function Home() {
   return (

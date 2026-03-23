@@ -32,7 +32,6 @@ export default function ProviderRegistration() {
   });
 
   const currentPercent = STEPS[step - 1]?.percent ?? 100;
-  const isLastStep = step === 3;
   const isSuccess = step === 4;
 
   const goBack = () => {

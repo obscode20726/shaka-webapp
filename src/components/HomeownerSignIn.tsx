@@ -16,14 +16,46 @@ export default function HomeownerSignIn() {
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = React.useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValidRwandanPhone(phone)) {
       setError("Please enter a valid Rwandan phone number (e.g., 0781234567)");
       return;
     }
     setError(null);
-    // Backend auth will be wired later.
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone,
+          password,
+          userType: 'homeowner'
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Handle successful login
+        console.log('Login successful:', data);
+        // Store token, redirect, etc.
+        alert('Login successful!');
+      } else {
+        setError(data.message || 'Login failed');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+      console.error('Login error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -119,9 +151,10 @@ export default function HomeownerSignIn() {
 
             <button
               type="submit"
-              className="mt-2 inline-flex w-full items-center justify-center rounded-lg bg-[#1a73e8] px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-[#1557b5]"
+              disabled={loading}
+              className="mt-2 inline-flex w-full items-center justify-center rounded-lg bg-[#1a73e8] px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-[#1557b5] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign In
+              {loading ? 'Signing In...' : 'Sign In'}
             </button>
 
             <div className="my-5 flex items-center gap-3">
