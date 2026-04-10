@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React, { useState } from "react";
+import { apiRequest } from "@/lib/api";
 
 const STEPS = [
   { label: "Create account", percent: 25 },
@@ -9,6 +10,7 @@ const STEPS = [
   { label: "Verification", percent: 75 },
   { label: "Complete", percent: 100 },
 ];
+
 
 export default function ProviderRegistration() {
   const [step, setStep] = useState(1);
@@ -30,6 +32,59 @@ export default function ProviderRegistration() {
     consentTerms: false,
     consentPrivacy: false,
   });
+  const [loading, setLoading] = useState(false);
+const [error, setError] = useState("");
+
+const handleProviderSignup = async () => {
+  try {
+    setLoading(true);
+    setError("");
+
+    // ⚠️ TEMP email (since your form uses phone)
+    const email = `${form.phone}@shaka.com`;
+
+    // 1️⃣ Create account
+    const authData = await apiRequest("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({
+        email,
+        password: form.password,
+        confirmPassword: form.confirmPassword,
+        userType: "provider",
+        phone: form.phone,
+      }),
+    });
+
+    // 2️⃣ Save token
+    localStorage.setItem("token", authData.token);
+    localStorage.setItem("user", JSON.stringify(authData.user));
+
+    // 3️⃣ Create provider profile
+    await apiRequest("/providers", {
+      method: "POST",
+      body: JSON.stringify({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        businessName: form.businessName,
+        primaryService: form.primaryService,
+        yearsExperience: Number(form.yearsExperience) || 0,
+        serviceArea: form.serviceArea,
+        serviceDescription: form.serviceDescription,
+        consentBackground: form.consentBackground,
+        consentTerms: form.consentTerms,
+        consentPrivacy: form.consentPrivacy,
+      }),
+    });
+
+    // ✅ SUCCESS → go to step 4
+    setStep(4);
+
+  } catch (err: any) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const currentPercent = STEPS[step - 1]?.percent ?? 100;
   const isLastStep = step === 3;
@@ -434,9 +489,12 @@ export default function ProviderRegistration() {
             </div>
 
             <div className="mt-6 flex justify-end">
+            {error && (
+  <p className="text-red-500 text-sm mt-4">{error}</p>
+)}
               <button
                 type="button"
-                onClick={goNext}
+                onClick={handleProviderSignup}
                 className="inline-flex items-center gap-2 rounded-lg bg-[#ff6a00] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#e05d00]"
               >
                 Create Account <span>→</span>
