@@ -8,7 +8,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b border-black/[.06]">
       <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          <Link href="#" className="flex items-center gap-2 select-none">
+          <Link href="/" className="flex items-center gap-2 select-none">
             <Image
               src="/Shaka logo 1.svg"
               alt="Shaka"

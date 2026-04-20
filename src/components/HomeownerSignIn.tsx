@@ -1,29 +1,82 @@
 "use client";
 
 import Link from "next/link";
-import React from "react";
-
-function isValidRwandanPhone(phone: string) {
-  const digits = phone.replace(/\D/g, "");
-  // Simple check for 10‑digit Rwandan mobile numbers like 0781234567, 072..., 073..., 078..., 079...
-  return /^0(72|73|78|79)\d{7}$/.test(digits);
-}
+import React, { useState } from "react";
+import { apiRequest } from "@/lib/api";
+import {
+  isValidRwandanMobile,
+  normalizeRwandanMobileDigits,
+} from "@/lib/phone";
 
 export default function HomeownerSignIn() {
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [rememberMe, setRememberMe] = React.useState(false);
-  const [phone, setPhone] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [error, setError] = React.useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [form, setForm] = useState({
+    phone: "",
+    password: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setForm((f) => ({ ...f, [name]: value }));
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValidRwandanPhone(phone)) {
-      setError("Please enter a valid Rwandan phone number (e.g., 0781234567)");
+
+    if (!form.password) {
+      setError("Password is required.");
       return;
     }
-    setError(null);
-    // Backend auth will be wired later.
+    if (!form.phone.trim()) {
+      setError("Phone number is required.");
+      return;
+    }
+    if (!isValidRwandanMobile(form.phone)) {
+      setError("Please enter a valid Rwandan phone number (e.g. 0781234567).");
+      return;
+    }
+
+    const phone = normalizeRwandanMobileDigits(form.phone);
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await apiRequest("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          phone,
+          password: form.password,
+        }),
+      });
+
+      const token = data?.token ?? data?.access_token;
+      if (!token) {
+        throw new Error("Login succeeded but no token was returned.");
+      }
+
+      localStorage.setItem("token", token);
+      if (rememberMe) {
+        document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=${60 * 60 * 24 * 7}; samesite=lax`;
+      } else {
+        document.cookie = `token=${encodeURIComponent(token)}; path=/; samesite=lax`;
+      }
+      if (data?.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
+      if (!rememberMe) {
+        sessionStorage.setItem("token", token);
+      }
+
+      window.location.href = "/homeowner/dashboard";
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -41,7 +94,7 @@ export default function HomeownerSignIn() {
 
         <div className="rounded-2xl border border-black/[.06] bg-white p-6 sm:p-8 shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
           <div className="flex justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#e8f1ff] text-2xl text-[#1a73e8]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#fff3e6] text-2xl text-[#ff6a00]">
               🏠
             </div>
           </div>
@@ -50,29 +103,31 @@ export default function HomeownerSignIn() {
             Welcome Back
           </h1>
           <p className="mt-1 text-center text-sm text-black/60">
-            Sign in to your homeowner account
+            Use the phone number you registered with, plus your password
           </p>
 
-          {error && (
+          {error ? (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 text-base">⚠️</span>
                 <p>{error}</p>
               </div>
             </div>
-          )}
+          ) : null}
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-6 space-y-4" onSubmit={handleLogin}>
             <div>
               <label className="mb-1 block text-sm font-medium text-black">
-                Phone Number
+                Phone number
               </label>
               <input
                 type="tel"
+                name="phone"
+                autoComplete="tel"
                 placeholder="0781234567"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#1a73e8] focus:outline-none focus:ring-1 focus:ring-[#1a73e8]"
+                value={form.phone}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
               />
             </div>
 
@@ -83,10 +138,12 @@ export default function HomeownerSignIn() {
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
+                  name="password"
+                  autoComplete="current-password"
                   placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 pr-10 text-sm placeholder:text-black/40 focus:border-[#1a73e8] focus:outline-none focus:ring-1 focus:ring-[#1a73e8]"
+                  value={form.password}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 pr-10 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
                 />
                 <button
                   type="button"
@@ -105,13 +162,13 @@ export default function HomeownerSignIn() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-black/20 text-[#1a73e8] focus:ring-[#1a73e8]"
+                  className="h-4 w-4 rounded border-black/20 text-[#ff6a00] focus:ring-[#ff6a00]"
                 />
                 Remember me
               </label>
               <Link
                 href="#"
-                className="text-sm font-medium text-[#1a73e8] hover:underline"
+                className="text-sm font-medium text-[#ff6a00] hover:underline"
               >
                 Forgot password?
               </Link>
@@ -119,9 +176,10 @@ export default function HomeownerSignIn() {
 
             <button
               type="submit"
-              className="mt-2 inline-flex w-full items-center justify-center rounded-lg bg-[#1a73e8] px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-[#1557b5]"
+              disabled={loading}
+              className="mt-2 inline-flex w-full items-center justify-center rounded-lg bg-[#ff6a00] px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-[#e05d00] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Sign In
+              {loading ? "Signing in..." : "Sign In"}
             </button>
 
             <div className="my-5 flex items-center gap-3">
@@ -151,7 +209,7 @@ export default function HomeownerSignIn() {
               Don&apos;t have an account?{" "}
               <Link
                 href="/signup/homeowner"
-                className="font-medium text-[#1a73e8] hover:underline"
+                className="font-medium text-[#ff6a00] hover:underline"
               >
                 Sign up here
               </Link>
@@ -159,7 +217,7 @@ export default function HomeownerSignIn() {
           </form>
         </div>
 
-        <div className="mt-8 rounded-2xl border border-[#1a73e8]/15 bg-[#e8f1ff] p-6 sm:p-7">
+        <div className="mt-8 rounded-2xl border border-[#ff6a00]/15 bg-[#fff3e6] p-6 sm:p-7">
           <h2 className="text-sm font-semibold text-black">
             Need help getting started?
           </h2>

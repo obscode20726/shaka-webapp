@@ -2,78 +2,117 @@
 
 import Link from "next/link";
 import React, { useState } from "react";
+import { apiRequest } from "@/lib/api";
+import {
+  isValidRwandanMobile,
+  normalizeRwandanMobileDigits,
+} from "@/lib/phone";
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
 
 const STEPS = [
-  { key: "service", label: "Service", percent: 25 },
   { key: "location", label: "Location", percent: 50 },
-  { key: "provider", label: "Provider", percent: 75 },
-  { key: "details", label: "Details", percent: 100 },
-];
-
-const SERVICES = [
-  { id: "removal", label: "Removal Service", emoji: "🚚" },
-  { id: "plumbing", label: "Plumbing", emoji: "🔧" },
-  { id: "gardening", label: "Gardening", emoji: "🌱" },
-  { id: "cleaning", label: "Cleaning", emoji: "✨" },
-  { id: "painting", label: "Painting", emoji: "🎨" },
-];
-
-const PROVIDERS = [
-  {
-    id: "john",
-    name: "John Smith",
-    rating: "4.9 (127 reviews)",
-    distance: "2.3 miles away",
-    tags: ["Residential Wiring", "Panel Upgrades", "Emergency Repairs"],
-    availability: "Available Today",
-  },
-  {
-    id: "sarah",
-    name: "Sarah Johnson",
-    rating: "4.8 (89 reviews)",
-    distance: "3.5 miles away",
-    tags: ["Smart Home Installation", "LED Lighting", "Outlet Installation"],
-    availability: "Available Tomorrow",
-  },
-  {
-    id: "mike",
-    name: "Mike Rodriguez",
-    rating: "4.7 (156 reviews)",
-    distance: "5.1 miles away",
-    tags: ["Commercial Electric", "Generator Installation", "Troubleshooting"],
-    availability: "Available This Week",
-  },
+  { key: "contact", label: "Contact & Sign up", percent: 100 },
 ];
 
 export default function HomeownerRegistration() {
-  const [step, setStep] = useState(1);
-  const [selectedService, setSelectedService] = useState<string | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [form, setForm] = useState({
     city: "",
+    province: "kigali",
     address: "",
-    date: "",
-    time: "",
-    description: "",
     fullName: "",
     email: "",
     phone: "",
+    password: "",
+    confirmPassword: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const isSuccess = step === 5;
+  const isSuccess = step === 3;
   const currentStep = STEPS[step - 1] ?? STEPS[STEPS.length - 1];
 
   const goBack = () => {
     if (step === 1) return;
-    setStep((s) => s - 1);
+    setStep((s): 1 | 2 | 3 => (s <= 1 ? 1 : ((s - 1) as 1 | 2 | 3)));
   };
 
   const goNext = () => {
-    if (step < 5) setStep((s) => s + 1);
+    if (step === 1) setStep(2);
   };
 
   const update = (key: keyof typeof form, value: string) => {
     setForm((f) => ({ ...f, [key]: value }));
+  };
+  const handleHomeownerSignup = async () => {
+    if (!form.email?.trim() || !form.password || !form.phone) {
+      setError("Email, phone, and password are required.");
+      return;
+    }
+
+    if (!isValidEmail(form.email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    if (!isValidRwandanMobile(form.phone)) {
+      setError("Please enter a valid Rwandan phone number (e.g. 0781234567).");
+      return;
+    }
+
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (!form.fullName || !form.province || !form.city) {
+      setError("Full name, province, and city are required.");
+      return;
+    }
+
+    const phoneDigits = normalizeRwandanMobileDigits(form.phone);
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await apiRequest("/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.email.trim(),
+          password: form.password,
+          confirmPassword: form.confirmPassword,
+          userType: "homeowner",
+          phone: phoneDigits,
+        }),
+      });
+
+      const token = data?.token ?? data?.access_token;
+      if (!token) throw new Error("Signup succeeded but no token was returned.");
+
+      localStorage.setItem("token", token);
+      if (data?.user) localStorage.setItem("user", JSON.stringify(data.user));
+
+      // Create the homeowner profile (required by the backend).
+      await apiRequest("/homeowners", {
+        method: "POST",
+        body: JSON.stringify({
+          fullName: form.fullName,
+          province: form.province,
+          city: form.city,
+          address: form.address,
+        }),
+      });
+
+      setStep(3);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Signup failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -98,7 +137,7 @@ export default function HomeownerRegistration() {
           )}
           {!isSuccess && (
             <span className="text-sm font-medium text-black/70">
-              Step {step} of 4
+              Step {step} of 2
             </span>
           )}
         </div>
@@ -134,51 +173,8 @@ export default function HomeownerRegistration() {
           </div>
         )}
 
-        {/* Step 1: Service */}
+        {/* Step 1: Location */}
         {step === 1 && (
-          <div className="rounded-2xl border border-black/[.06] bg-white p-6 shadow-sm sm:p-8">
-            <h1 className="text-lg font-semibold text-black sm:text-xl">
-              What service do you need?
-            </h1>
-            <p className="mt-1 text-sm text-black/60">
-              Select the type of service you&apos;re looking for
-            </p>
-
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {SERVICES.map((service) => {
-                const active = selectedService === service.id;
-                return (
-                  <button
-                    key={service.id}
-                    type="button"
-                    onClick={() => setSelectedService(service.id)}
-                    className={`flex h-24 flex-col items-center justify-center rounded-xl border text-sm font-medium transition-colors ${
-                      active
-                        ? "border-[#ff6a00] bg-[#fff5ee]"
-                        : "border-black/[.08] bg-white hover:bg-black/[.02]"
-                    }`}
-                  >
-                    <span className="mb-1 text-2xl">{service.emoji}</span>
-                    <span className="text-black">{service.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={goNext}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#ff6a00] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#e05d00]"
-              >
-                Continue <span>→</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Location */}
-        {step === 2 && (
           <div className="rounded-2xl border border-black/[.06] bg-white p-6 shadow-sm sm:p-8">
             <h1 className="text-lg font-semibold text-black sm:text-xl">
               Where do you need the service?
@@ -190,6 +186,23 @@ export default function HomeownerRegistration() {
             <div className="mt-6 space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-black">
+                  Province
+                </label>
+                <select
+                  value={form.province}
+                  onChange={(e) => update("province", e.target.value)}
+                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm text-black/80 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
+                >
+                  <option value="">Select your province</option>
+                  <option value="kigali">kigali</option>
+                  <option value="north">north</option>
+                  <option value="south">south</option>
+                  <option value="east">east</option>
+                  <option value="west">west</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-black">
                   Service Location
                 </label>
                 <select
@@ -198,15 +211,14 @@ export default function HomeownerRegistration() {
                   className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm text-black/80 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
                 >
                   <option value="">Select your city</option>
-                  <option value="San Francisco, CA">San Francisco, CA</option>
-                  <option value="San Jose, CA">San Jose, CA</option>
-                  <option value="Oakland, CA">Oakland, CA</option>
+                  <option value="Nyarugenge">Nyarugenge</option>
+                  <option value="Gasabo">Gasabo</option>
+                  <option value="Kicukiro">Kicukiro</option>
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-black">
-                  Specific Address{" "}
-                  <span className="text-black/50">(Optional)</span>
+                  Specific Address <span className="text-black/50">(Optional)</span>
                 </label>
                 <input
                   type="text"
@@ -230,242 +242,158 @@ export default function HomeownerRegistration() {
           </div>
         )}
 
-        {/* Step 3: Provider */}
-        {step === 3 && (
+        {/* Step 2: Contact Information */}
+        {step === 2 && (
           <div className="rounded-2xl border border-black/[.06] bg-white p-6 shadow-sm sm:p-8">
             <h1 className="text-lg font-semibold text-black sm:text-xl">
-              Choose a Provider
+              Contact Information
             </h1>
             <p className="mt-1 text-sm text-black/60">
-              Select from vetted professionals in your area
+              Share your details so providers can reach you
             </p>
 
-            <div className="mt-6 space-y-4">
-              {PROVIDERS.map((p) => {
-                const active = selectedProvider === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setSelectedProvider(p.id)}
-                    className={`w-full rounded-2xl border bg-white p-4 text-left transition-colors sm:p-5 ${
-                      active
-                        ? "border-[#ff6a00] bg-[#fffaf6]"
-                        : "border-black/[.08] hover:bg:black/[.02]"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3">
-                        <div className="h-10 w-10 rounded-full bg-black/10" />
-                        <div>
-                          <p className="font-semibold text-black">{p.name}</p>
-                          <p className="mt-0.5 text-xs text-black/60">
-                            ⭐ {p.rating} · {p.distance}
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {p.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="rounded-full bg-black/[.03] px-2 py-0.5 text-[11px] text-black/70"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="mt-3 text-sm font-medium text-green-600">
-                      ● {p.availability}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={goNext}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#ff6a00] px-5 py-2.5 text-sm font-medium text:white hover:bg-[#e05d00]"
-              >
-                Continue <span>→</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Booking Details */}
-        {step === 4 && (
-          <div className="rounded-2xl border border-black/[.06] bg:white p-6 shadow-sm sm:p-8">
-            <h1 className="text-lg font-semibold text:black sm:text-xl">
-              Booking Details
-            </h1>
-            <p className="mt-1 text-sm text:black/60">
-              When would you like the service and tell us about your project
-            </p>
-
-            <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text:black">
-                    Select Date
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Pick a date"
-                    value={form.date}
-                    onChange={(e) => update("date", e.target.value)}
-                    className="w-full rounded-lg border border:black/15 bg:white px-3 py-2.5 text-sm placeholder:text:black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text:black">
-                    Preferred Time
-                  </label>
-                  <select
-                    value={form.time}
-                    onChange={(e) => update("time", e.target.value)}
-                    className="w-full rounded-lg border:border-black/15 bg:white px-3 py-2.5 text-sm text:black/80 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
-                  >
-                    <option value="">Select time</option>
-                    <option value="9:00 AM">9:00 AM</option>
-                    <option value="10:00 AM">10:00 AM</option>
-                    <option value="2:00 PM">2:00 PM</option>
-                    <option value="5:00 PM">5:00 PM</option>
-                  </select>
-                </div>
+            <div className="mt-6 space-y-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-black">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Your name"
+                  value={form.fullName}
+                  onChange={(e) => update("fullName", e.target.value)}
+                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
+                />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text:black">
-                  Project Description
+                <label className="mb-1 block text-sm font-medium text-black">
+                  Email address
                 </label>
-                <textarea
-                  placeholder="Describe what you need help with..."
-                  value={form.description}
-                  onChange={(e) => update("description", e.target.value)}
-                  rows={5}
-                  className="w-full resize-none rounded-lg border:border-black/15 bg:white px-3 py-2.5 text-sm placeholder:text:black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={form.email}
+                  onChange={(e) => update("email", e.target.value)}
+                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-black">
+                  Phone number
+                </label>
+                <input
+                  type="tel"
+                  placeholder="0781234567"
+                  value={form.phone}
+                  onChange={(e) => update("phone", e.target.value)}
+                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
+                />
+                <p className="mt-1.5 text-xs text-black/50">
+                  You&apos;ll sign in with this number and your password.
+                </p>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-black">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  placeholder="Create a password"
+                  value={form.password}
+                  onChange={(e) => update("password", e.target.value)}
+                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-black">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={form.confirmPassword}
+                  onChange={(e) => update("confirmPassword", e.target.value)}
+                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
                 />
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <h2 className="text-sm font-semibold text:black">
-                  Contact Information
-                </h2>
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text:black">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Your name"
-                      value={form.fullName}
-                      onChange={(e) => update("fullName", e.target.value)}
-                      className="w-full rounded-lg border:border-black/15 bg:white px-3 py-2.5 text-sm placeholder:text:black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text:black">
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="Your email"
-                      value={form.email}
-                      onChange={(e) => update("email", e.target.value)}
-                      className="w-full rounded-lg border:border-black/15 bg:white px-3 py-2.5 text-sm placeholder:text:black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text:black">
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      placeholder="Your phone number"
-                      value={form.phone}
-                      onChange={(e) => update("phone", e.target.value)}
-                      className="w-full rounded-lg border:border-black/15 bg:white px-3 py-2.5 text-sm placeholder:text:black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
-                    />
-                  </div>
-                </div>
+            <div className="mt-6">
+              {error ? (
+                <p className="text-red-500 text-sm">{error}</p>
+              ) : null}
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleHomeownerSignup}
+                  disabled={loading}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#ff6a00] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#e05d00]"
+                >
+                  {loading ? "Creating..." : "Sign Up"} <span>→</span>
+                </button>
               </div>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={goNext}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#ff6a00] px-5 py-2.5 text-sm font-medium text:white hover:bg-[#e05d00]"
-              >
-                Book Service <span>→</span>
-              </button>
             </div>
           </div>
         )}
 
-        {/* Success: Booking Request Sent */}
+        {/* Success: Account Created */}
         {isSuccess && (
-          <div className="rounded-2xl border border:black/[.06] bg:white p-6 text-center shadow-sm sm:p-8">
+          <div className="rounded-2xl border border-black/[.06] bg-white p-6 text-center shadow-sm sm:p-8">
             <div className="mb-4 flex justify-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl text-green-600">
                 ✓
               </div>
             </div>
-            <h1 className="text-xl font-semibold text:black">
-              Booking Request Sent!
+            <h1 className="text-xl font-semibold text-black">
+              Welcome to Shaka!
             </h1>
-            <p className="mt-1 text-sm text:black/60">
-              Your booking request has been sent to the provider.
+            <p className="mt-1 text-sm text-black/60">
+              Your homeowner account has been created successfully.
             </p>
 
-            <div className="mt-6 mx-auto max-w-xl rounded-2xl border:border-black/10 bg:black/[.02] p-5 text-left">
-              <p className="text-sm font-semibold text:black">
-                Booking Summary
+            <div className="mt-6 mx-auto max-w-xl rounded-2xl border border-black/10 bg-black/[.02] p-5 text-left">
+              <p className="text-sm font-semibold text-black">
+                Profile Summary
               </p>
-              <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2 text-sm text:black/80">
-                <span className="text:black/60">Provider</span>
-                <span>John Smith</span>
-                <span className="text:black/60">Date</span>
-                <span>{form.date || "February 2nd, 2026"}</span>
-                <span className="text:black/60">Time</span>
-                <span>{form.time || "10:00 AM"}</span>
-                <span className="text:black/60">Location</span>
-                <span>{form.city || "San Francisco, CA"}</span>
-                <span className="text:black/60">Contact</span>
-                <span>{form.phone || "67783"}</span>
+              <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2 text-sm text-black/80">
+                <span className="text-black/60">Province</span>
+                <span>{form.province || "Not provided"}</span>
+                <span className="text-black/60">City</span>
+                <span>{form.city || "Not provided"}</span>
+                <span className="text-black/60">Address</span>
+                <span>{form.address || "Not provided"}</span>
+                <span className="text-black/60">Name</span>
+                <span>{form.fullName || "Not provided"}</span>
+                <span className="text-black/60">Email</span>
+                <span>{form.email || "Not provided"}</span>
+                <span className="text-black/60">Phone</span>
+                <span>{form.phone || "Not provided"}</span>
               </div>
             </div>
 
             <div className="mt-6 mx-auto max-w-xl rounded-xl border border-[#1a73e8]/20 bg-[#e8f1ff] p-4 text-left">
-              <p className="text-sm font-semibold text:black">
+              <p className="text-sm font-semibold text-black">
                 What happens next?
               </p>
-              <ul className="mt-2 space-y-1 text-sm text:black/80">
+              <ul className="mt-2 space-y-1 text-sm text-black/80">
                 <li>
-                  • The provider will visit your location at the scheduled time
+                  • Browse providers near your location
                 </li>
                 <li>
-                  • They&apos;ll assess the work and create a detailed quote
+                  • Create a service request when you need help
                 </li>
                 <li>
-                  • You&apos;ll receive the quote in your dashboard for review
+                  • Receive quotes and manage your bookings
                 </li>
-                <li>• Once you approve, payment will be held in escrow</li>
-                <li>• Payment is released after work is completed</li>
               </ul>
             </div>
 
-            <button
-              type="button"
-              className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-[#ff6a00] px-5 py-3 text-sm font-medium text:white hover:bg-[#e05d00]"
+            <Link
+              href="/homeowner/dashboard"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-[#ff6a00] px-5 py-3 text-sm font-medium text-white hover:bg-[#e05d00]"
             >
               Go to Dashboard
-            </button>
+            </Link>
           </div>
         )}
       </div>

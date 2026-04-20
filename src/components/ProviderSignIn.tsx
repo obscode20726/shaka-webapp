@@ -50,6 +50,12 @@ export default function ProviderSignIn() {
         throw new Error("Login succeeded but no token was returned.");
       }
       localStorage.setItem("token", token);
+      // Mirror auth token in a cookie so protected routes can validate on server render.
+      if (rememberMe) {
+        document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=${60 * 60 * 24 * 7}; samesite=lax`;
+      } else {
+        document.cookie = `token=${encodeURIComponent(token)}; path=/; samesite=lax`;
+      }
       if (data?.user) {
         localStorage.setItem("user", JSON.stringify(data.user));
       }
