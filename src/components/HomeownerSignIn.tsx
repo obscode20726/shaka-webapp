@@ -3,12 +3,10 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { apiRequest } from "@/lib/api";
-import {
-  isValidRwandanMobile,
-  normalizeRwandanMobileDigits,
-} from "@/lib/phone";
+import { useRouter } from "next/navigation";
 
 export default function HomeownerSignIn() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [form, setForm] = useState({
@@ -23,23 +21,11 @@ export default function HomeownerSignIn() {
     setForm((f) => ({ ...f, [name]: value }));
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!form.password) {
-      setError("Password is required.");
+  const handleHomeownerLogin = async () => {
+    if (!form.phone || !form.password) {
+      setError("Phone and password are required");
       return;
     }
-    if (!form.phone.trim()) {
-      setError("Phone number is required.");
-      return;
-    }
-    if (!isValidRwandanMobile(form.phone)) {
-      setError("Please enter a valid Rwandan phone number (e.g. 0781234567).");
-      return;
-    }
-
-    const phone = normalizeRwandanMobileDigits(form.phone);
 
     try {
       setLoading(true);
@@ -48,37 +34,36 @@ export default function HomeownerSignIn() {
       const data = await apiRequest("/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          phone,
+          phone: form.phone,
           password: form.password,
         }),
       });
 
-      const token = data?.token ?? data?.access_token;
-      if (!token) {
-        throw new Error("Login succeeded but no token was returned.");
-      }
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
 
-      localStorage.setItem("token", token);
-      if (rememberMe) {
-        document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=${60 * 60 * 24 * 7}; samesite=lax`;
-      } else {
-        document.cookie = `token=${encodeURIComponent(token)}; path=/; samesite=lax`;
-      }
-      if (data?.user) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-      }
-      if (!rememberMe) {
-        sessionStorage.setItem("token", token);
-      }
+      // Server routes (dashboard pages) check cookies(), not localStorage.
+      // Set a cookie so Next.js server components can read it.
+      const baseCookie = `token=${encodeURIComponent(
+        data.token
+      )}; Path=/; SameSite=Lax`;
+      const isHttps =
+        typeof window !== "undefined" && window.location.protocol === "https:";
+      const expires = rememberMe
+        ? `; Expires=${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString()}`
+        : "";
+      document.cookie = `${baseCookie}${expires}${isHttps ? "; Secure" : ""}`;
 
-      window.location.href = "/homeowner/dashboard";
+      // ✅ FIXED redirect
+      router.push("/homeowner/dashboard");
+      console.log("DATA:", data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      const message = err instanceof Error ? err.message : "Login failed";
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <section className="min-h-screen bg-[#f6f7f9] py-10 sm:py-16">
       <div className="mx-auto max-w-[520px] px-4 sm:px-6">
@@ -115,18 +100,22 @@ export default function HomeownerSignIn() {
             </div>
           ) : null}
 
-          <form className="mt-6 space-y-4" onSubmit={handleLogin}>
+          <form
+            className="mt-6 space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault(); // 🚨 STOP page reload
+              handleHomeownerLogin();
+            }}
+          >
             <div>
               <label className="mb-1 block text-sm font-medium text-black">
                 Phone number
               </label>
               <input
-                type="tel"
-                name="phone"
-                autoComplete="tel"
-                placeholder="0781234567"
+                type="text"
+                placeholder="Phone Number"
                 value={form.phone}
-                onChange={handleChange}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
               />
             </div>

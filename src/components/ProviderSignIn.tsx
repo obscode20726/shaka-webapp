@@ -34,14 +34,12 @@ export default function ProviderSignIn() {
       setLoading(true);
       setError("");
 
-      // Provider signup uses phone-derived email, so we keep login aligned.
-      const email = `${form.phone}@shaka.com`;
+      // ✅ LOGIN ONLY USES PHONE + PASSWORD
       const data = await apiRequest("/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          email,
-          password: form.password,
           phone: form.phone,
+          password: form.password,
         }),
       });
 

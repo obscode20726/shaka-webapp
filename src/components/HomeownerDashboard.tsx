@@ -21,7 +21,8 @@ const requests = [
     location: "Kigali, Rwanda",
     preferredDate: "2025-02-15",
     requestedOn: "2025-02-09",
-    description: "Need help moving a 2-bedroom apartment to a new location across town",
+    description:
+      "Need help moving a 2-bedroom apartment to a new location across town",
     quote: {
       timeline: "1 day",
       validUntil: "2025-02-20",
@@ -49,7 +50,8 @@ const requests = [
       amount: "RWF 85,000",
       details:
         "I will fix the kitchen sink leak by replacing worn-out pipes and faucet seals. This includes checking all connections under the sink.",
-      materials: "PVC pipes, faucet seals, pipe fittings, plumber tape, silicone sealant",
+      materials:
+        "PVC pipes, faucet seals, pipe fittings, plumber tape, silicone sealant",
       terms:
         "Two-phase payment: materials upfront, labor after completion. All materials covered under 1-year warranty.",
     },
@@ -84,8 +86,13 @@ export default function HomeownerDashboard() {
   React.useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const data = await apiRequest("/auth/me");
-        setProfile(data);
+        const userProfile = await apiRequest("/users/me");
+
+        console.log("Homeowner profile data:", userProfile);
+        console.log("Homeowner details:", userProfile?.homeownerProfile);
+
+        // ✅ Extract the homeownerProfile
+        setProfile(userProfile.homeownerProfile);
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : "Unable to load profile";
@@ -113,9 +120,7 @@ export default function HomeownerDashboard() {
   }, []);
 
   const welcomeName =
-    profile?.firstName ||
-    profile?.fullName?.split(" ").at(0) ||
-    "Homeowner";
+    profile?.fullName?.split(" ").at(0) || "Homeowner"; // Gets first name from fullName
 
   return (
     <section className="min-h-screen bg-[#f3f4f6] py-6 sm:py-10">
@@ -131,9 +136,13 @@ export default function HomeownerDashboard() {
                 <span>Back to Home</span>
               </Link>
               <h1 className="mt-2 text-2xl font-semibold text-black sm:text-[34px]">
-                {loading ? "Loading dashboard..." : `Welcome back, ${welcomeName}!`}
+                {loading
+                  ? "Loading dashboard..."
+                  : `Welcome back, ${welcomeName}!`}
               </h1>
-              <p className="text-sm text-black/55">Manage your bookings and account</p>
+              <p className="text-sm text-black/55">
+                Manage your bookings and account
+              </p>
               {profileError ? (
                 <p className="mt-2 text-sm text-red-600">{profileError}</p>
               ) : null}
@@ -170,7 +179,9 @@ export default function HomeownerDashboard() {
                 <button
                   key={tab}
                   className={`rounded-full px-3 py-2 text-xs font-medium sm:text-sm ${
-                    idx === 0 ? "bg-white text-black shadow-sm" : "text-black/70"
+                    idx === 0
+                      ? "bg-white text-black shadow-sm"
+                      : "text-black/70"
                   }`}
                 >
                   {tab}
@@ -180,8 +191,12 @@ export default function HomeownerDashboard() {
           </div>
 
           <div className="mt-6">
-            <h2 className="text-2xl font-semibold text-black">Service Requests &amp; Quotes</h2>
-            <p className="text-sm text-black/55">Request services and manage quotes from providers</p>
+            <h2 className="text-2xl font-semibold text-black">
+              Service Requests &amp; Quotes
+            </h2>
+            <p className="text-sm text-black/55">
+              Request services and manage quotes from providers
+            </p>
           </div>
 
           <div className="mt-5 space-y-4">
@@ -207,11 +222,19 @@ export default function HomeownerDashboard() {
                       </span>
                     </div>
                     {request.provider ? (
-                      <p className="mt-2 text-sm text-black/70">Provider: {request.provider}</p>
+                      <p className="mt-2 text-sm text-black/70">
+                        Provider: {request.provider}
+                      </p>
                     ) : null}
-                    <p className="text-sm text-black/70">Location: {request.location}</p>
-                    <p className="text-sm text-black/70">Preferred Date: {request.preferredDate}</p>
-                    <p className="text-sm text-black/45">Requested: {request.requestedOn}</p>
+                    <p className="text-sm text-black/70">
+                      Location: {request.location}
+                    </p>
+                    <p className="text-sm text-black/70">
+                      Preferred Date: {request.preferredDate}
+                    </p>
+                    <p className="text-sm text-black/45">
+                      Requested: {request.requestedOn}
+                    </p>
                   </div>
 
                   <button className="inline-flex items-center rounded-lg border border-black/15 bg-white px-4 py-2 text-sm font-medium text-black/75 hover:bg-black/[.02]">
@@ -229,17 +252,25 @@ export default function HomeownerDashboard() {
                 {request.quote ? (
                   <div className="mt-4 rounded-xl bg-[#f4f9ff] p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <p className="text-sm font-semibold text-black">Quote Details</p>
-                      <p className="text-sm font-semibold text-[#1f9d4a]">{request.quote.amount}</p>
+                      <p className="text-sm font-semibold text-black">
+                        Quote Details
+                      </p>
+                      <p className="text-sm font-semibold text-[#1f9d4a]">
+                        {request.quote.amount}
+                      </p>
                     </div>
 
                     <div className="mt-3 grid gap-2 text-sm text-black/75 sm:grid-cols-2">
                       <p>
-                        <span className="font-medium text-black">Timeline:</span>{" "}
+                        <span className="font-medium text-black">
+                          Timeline:
+                        </span>{" "}
                         {request.quote.timeline}
                       </p>
                       <p>
-                        <span className="font-medium text-black">Valid Until:</span>{" "}
+                        <span className="font-medium text-black">
+                          Valid Until:
+                        </span>{" "}
                         {request.quote.validUntil}
                       </p>
                     </div>
@@ -253,7 +284,8 @@ export default function HomeownerDashboard() {
                       {request.quote.materials}
                     </p>
                     <p className="mt-2 text-sm text-black/75">
-                      <span className="font-medium text-black">Terms:</span> {request.quote.terms}
+                      <span className="font-medium text-black">Terms:</span>{" "}
+                      {request.quote.terms}
                     </p>
 
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">

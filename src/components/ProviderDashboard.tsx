@@ -31,13 +31,21 @@ const topStats = [
   },
 ];
 
-const tabs = [
-  { name: "Quotes", active: true },
-  { name: "Overview", active: false },
-  { name: "Requests", active: false, badge: "1" },
-  { name: "Schedule", active: false },
-  { name: "Earnings", active: false },
-  { name: "Profile", active: false },
+type TabName =
+  | "Quotes"
+  | "Overview"
+  | "Requests"
+  | "Schedule"
+  | "Earnings"
+  | "Profile";
+
+const tabs: Array<{ name: TabName; badge?: string }> = [
+  { name: "Quotes" },
+  { name: "Overview" },
+  { name: "Requests", badge: "1" },
+  { name: "Schedule" },
+  { name: "Earnings" },
+  { name: "Profile" },
 ];
 
 const requests = [
@@ -66,35 +74,90 @@ type ProviderProfile = {
   primaryService?: string;
   yearsExperience?: number;
 };
+type ServiceRequest = {
+  id: string;
+  status: string;
+  description: string;
+  preferredDate: string;
+  city: string;
+  service: {
+    title: string;
+    slug: string;
+  };
+  homeownerId: string;
+};
+
+type Booking = {
+  id: string;
+  scheduledAt: string;
+  escrowStatus: string;
+  provider: { firstName: string; lastName: string };
+};
+
+type Payment = {
+  id: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+};
+const recentActivity = [
+  {
+    customer: "Alice Cooper",
+    service: "Electrical",
+    amount: "$200",
+    status: "pending" as const,
+  },
+  {
+    customer: "Bob Wilson",
+    service: "Electrical",
+    amount: "$150",
+    status: "accepted" as const,
+  },
+  {
+    customer: "Carol Davis",
+    service: "Electrical",
+    amount: "$120",
+    status: "completed" as const,
+  },
+];
+
+function StatusPill({
+  status,
+}: {
+  status: "pending" | "accepted" | "completed";
+}) {
+  const styles =
+    status === "pending"
+      ? "bg-[#fff4cf] text-[#987303]"
+      : status === "accepted"
+        ? "bg-[#eaf2ff] text-[#2a73d9]"
+        : "bg-[#e8f8ed] text-[#1f9d4a]";
+
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>
+      {status}
+    </span>
+  );
+}
 
 export default function ProviderDashboard() {
   const [profile, setProfile] = React.useState<ProviderProfile | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [profileError, setProfileError] = React.useState<string | null>(null);
+  const [activeTab, setActiveTab] = React.useState<TabName>("Overview");
 
   React.useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // 1️⃣ Get logged-in user
-        const user = await apiRequest("/auth/me");
+        const profile = await apiRequest("/users/me");
 
-        // get ALL providers (backend not filtering)
-        const providers = await apiRequest("/providers");
-
-        console.log("ALL PROVIDERS:", providers);
-
-        // ✅ filter manually
-        const provider = providers.find((p: any) => p.userId === user.id);
-        console.log("USER:", user);
-        console.log("MATCHED PROVIDER:", provider);
-
-        setProfile(provider);
+        // The response should have provider fields like firstName, lastName, businessName, etc.
+        setProfile(profile.providerProfile);
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : "Unable to load profile";
         setProfileError(message);
 
-        // Token missing/expired/invalid: force re-authentication.
         const lowerMessage = message.toLowerCase();
         if (
           lowerMessage.includes("unauthorized") ||
@@ -181,10 +244,11 @@ export default function ProviderDashboard() {
                 <button
                   key={tab.name}
                   className={`rounded-full px-3 py-2 text-xs font-medium sm:text-sm ${
-                    tab.active
+                    tab.name === activeTab
                       ? "bg-white text-black shadow-sm"
                       : "text-black/70"
                   }`}
+                  onClick={() => setActiveTab(tab.name)}
                 >
                   <span>{tab.name}</span>
                   {tab.badge ? (
@@ -197,63 +261,138 @@ export default function ProviderDashboard() {
             </div>
           </div>
 
-          <div className="mt-6">
-            <h2 className="text-2xl font-semibold text-black">
-              Booking Requests &amp; Quotes
-            </h2>
-            <p className="text-sm text-black/55">
-              View requests and submit quotes to customers
-            </p>
-          </div>
+          {activeTab === "Overview" ? (
+            <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <section className="rounded-2xl border border-black/10 bg-white p-4 sm:p-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-black">
+                    Recent Activity
+                  </h2>
+                </div>
 
-          <div className="mt-5 space-y-4">
-            {requests.map((request) => (
-              <article
-                key={`${request.service}-${request.customer}`}
-                className="rounded-2xl border border-black/10 bg-white p-4 sm:p-5"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-[28px] font-medium leading-none text-black sm:text-[30px]">
-                        {request.service}
-                      </h3>
-                      <span className="rounded-full bg-[#fff4cf] px-2 py-0.5 text-xs text-[#987303]">
-                        Pending
-                      </span>
+                <div className="mt-4 space-y-3">
+                  {recentActivity.map((item) => (
+                    <article
+                      key={`${item.customer}-${item.amount}-${item.status}`}
+                      className="flex items-center justify-between rounded-xl border border-black/10 bg-white px-3 py-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/[.05] text-sm font-semibold text-black/70">
+                          {item.customer.slice(0, 1).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-black">
+                            {item.customer}
+                          </p>
+                          <p className="text-xs text-black/60">
+                            {item.service} • {item.amount}
+                          </p>
+                        </div>
+                      </div>
+                      <StatusPill status={item.status} />
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-black/10 bg-white p-4 text-black sm:p-5">
+                <h2 className="text-xl font-semibold">
+                  This Month&apos;s Performance
+                </h2>
+
+                <dl className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <dt className="text-sm text-black/75">Jobs Completed</dt>
+                    <dd className="text-sm font-semibold">1</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-sm text-black/75">Response Rate</dt>
+                    <dd className="text-sm font-semibold">98%</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-sm text-black/75">
+                      Customer Satisfaction
+                    </dt>
+                    <dd className="text-sm font-semibold">4.8 ⭐</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-sm text-black/75">Total Earnings</dt>
+                    <dd className="text-sm font-semibold text-[#22a355]">
+                      $120
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
+          ) : activeTab === "Quotes" ? (
+            <>
+              <div className="mt-6">
+                <h2 className="text-2xl font-semibold text-black">
+                  Booking Requests &amp; Quotes
+                </h2>
+                <p className="text-sm text-black/55">
+                  View requests and submit quotes to customers
+                </p>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                {requests.map((request) => (
+                  <article
+                    key={`${request.service}-${request.customer}`}
+                    className="rounded-2xl border border-black/10 bg-white p-4 sm:p-5"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-[28px] font-medium leading-none text-black sm:text-[30px]">
+                            {request.service}
+                          </h3>
+                          <span className="rounded-full bg-[#fff4cf] px-2 py-0.5 text-xs text-[#987303]">
+                            Pending
+                          </span>
+                        </div>
+                        <p className="mt-2 text-lg text-black/70">
+                          Customer: {request.customer}
+                        </p>
+                        <p className="text-lg text-black/70">
+                          Location: {request.location}
+                        </p>
+                        <p className="text-lg text-black/70">
+                          Preferred Date: {request.preferredDate}
+                        </p>
+                        <p className="text-base text-black/45">
+                          Requested: {request.requestedOn}
+                        </p>
+                      </div>
+
+                      <button className="inline-flex items-center rounded-lg border border-black/15 bg-white px-4 py-2 text-sm font-medium text-black/75 hover:bg-black/[.02]">
+                        💬 Message
+                      </button>
                     </div>
-                    <p className="mt-2 text-lg text-black/70">
-                      Customer: {request.customer}
-                    </p>
-                    <p className="text-lg text-black/70">
-                      Location: {request.location}
-                    </p>
-                    <p className="text-lg text-black/70">
-                      Preferred Date: {request.preferredDate}
-                    </p>
-                    <p className="text-base text-black/45">
-                      Requested: {request.requestedOn}
-                    </p>
-                  </div>
 
-                  <button className="inline-flex items-center rounded-lg border border-black/15 bg-white px-4 py-2 text-sm font-medium text-black/75 hover:bg-black/[.02]">
-                    💬 Message
-                  </button>
-                </div>
+                    <div className="mt-4">
+                      <p className="text-lg font-medium text-black">
+                        Description:
+                      </p>
+                      <div className="mt-2 rounded-md bg-[#f5f6f8] px-4 py-3 text-base text-black/70">
+                        {request.description}
+                      </div>
+                    </div>
 
-                <div className="mt-4">
-                  <p className="text-lg font-medium text-black">Description:</p>
-                  <div className="mt-2 rounded-md bg-[#f5f6f8] px-4 py-3 text-base text-black/70">
-                    {request.description}
-                  </div>
-                </div>
-
-                <button className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-[#ff6a00] px-4 py-3 text-sm font-medium text-white hover:bg-[#e85f00]">
-                  ✈ Submit Quote
-                </button>
-              </article>
-            ))}
-          </div>
+                    <button className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-[#ff6a00] px-4 py-3 text-sm font-medium text-white hover:bg-[#e85f00]">
+                      ✈ Submit Quote
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="mt-6 rounded-2xl border border-black/10 bg-white p-6 text-center">
+              <p className="text-sm text-black/60">
+                {activeTab} tab coming soon.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

@@ -11,12 +11,12 @@ const STEPS = [
   { label: "Complete", percent: 100 },
 ];
 
-
 export default function ProviderRegistration() {
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     phone: "",
+    email: "",
     password: "",
     confirmPassword: "",
     firstName: "",
@@ -33,58 +33,55 @@ export default function ProviderRegistration() {
     consentPrivacy: false,
   });
   const [loading, setLoading] = useState(false);
-const [error, setError] = useState("");
+  const [error, setError] = useState("");
 
-const handleProviderSignup = async () => {
-  try {
-    setLoading(true);
-    setError("");
+  const handleProviderSignup = async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-    // ⚠️ TEMP email (since your form uses phone)
-    const email = `${form.phone}@shaka.com`;
+      // 1️⃣ Create account
+      const authData = await apiRequest("/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.email,
+          phone: form.phone,
+          password: form.password,
+          confirmPassword: form.confirmPassword,
+          userType: "provider",
+        }),
+      });
 
-    // 1️⃣ Create account
-    const authData = await apiRequest("/auth/signup", {
-      method: "POST",
-      body: JSON.stringify({
-        email,
-        password: form.password,
-        confirmPassword: form.confirmPassword,
-        userType: "provider",
-        phone: form.phone,
-      }),
-    });
+      // 2️⃣ Save token
+      localStorage.setItem("token", authData.token);
+      localStorage.setItem("user", JSON.stringify(authData.user));
 
-    // 2️⃣ Save token
-    localStorage.setItem("token", authData.token);
-    localStorage.setItem("user", JSON.stringify(authData.user));
+      // 3️⃣ Create provider profile
+      await apiRequest("/providers", {
+        method: "POST",
+        body: JSON.stringify({
+          firstName: form.firstName,
+          lastName: form.lastName,
+          businessName: form.businessName,
+          primaryService: form.primaryService,
+          yearsExperience: Number(form.yearsExperience) || 0,
+          serviceArea: form.serviceArea,
+          serviceDescription: form.serviceDescription,
+          consentBackground: form.consentBackground,
+          consentTerms: form.consentTerms,
+          consentPrivacy: form.consentPrivacy,
+        }),
+      });
 
-    // 3️⃣ Create provider profile
-    await apiRequest("/providers", {
-      method: "POST",
-      body: JSON.stringify({
-        firstName: form.firstName,
-        lastName: form.lastName,
-        businessName: form.businessName,
-        primaryService: form.primaryService,
-        yearsExperience: Number(form.yearsExperience) || 0,
-        serviceArea: form.serviceArea,
-        serviceDescription: form.serviceDescription,
-        consentBackground: form.consentBackground,
-        consentTerms: form.consentTerms,
-        consentPrivacy: form.consentPrivacy,
-      }),
-    });
-
-    // ✅ SUCCESS → go to step 4
-    setStep(4);
-
-  } catch (err: any) {
-    setError(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+      // ✅ SUCCESS → go to step 4
+      setStep(4);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "signup failed";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const currentPercent = STEPS[step - 1]?.percent ?? 100;
   const isLastStep = step === 3;
@@ -167,6 +164,18 @@ const handleProviderSignup = async () => {
             <div className="mt-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-black mb-1">
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  placeholder="your.email@example.com"
+                  value={form.email}
+                  onChange={(e) => update("email", e.target.value)}
+                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-black mb-1">
                   Phone Number
                 </label>
                 <input
@@ -193,7 +202,9 @@ const handleProviderSignup = async () => {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-black/50 hover:text-black"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? "🙈" : "👁"}
                   </button>
@@ -237,7 +248,10 @@ const handleProviderSignup = async () => {
 
             <p className="mt-6 text-center text-sm text-black/60">
               Already have an account?{" "}
-              <Link href="/signin/provider" className="text-[#ff6a00] hover:underline">
+              <Link
+                href="/signin/provider"
+                className="text-[#ff6a00] hover:underline"
+              >
                 Sign in here
               </Link>
             </p>
@@ -289,7 +303,8 @@ const handleProviderSignup = async () => {
 
               <div>
                 <label className="block text-sm font-medium text-black mb-1">
-                  Business Name <span className="text-black/50">(Optional)</span>
+                  Business Name{" "}
+                  <span className="text-black/50">(Optional)</span>
                 </label>
                 <input
                   type="text"
@@ -301,19 +316,6 @@ const handleProviderSignup = async () => {
                 <p className="mt-1 text-xs text-black/50">
                   This will be shown on your profile if provided.
                 </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-black mb-1">
-                  Phone Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  placeholder="+250 XXX XXX XXX"
-                  value={form.phone2}
-                  onChange={(e) => update("phone2", e.target.value)}
-                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
-                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -419,13 +421,16 @@ const handleProviderSignup = async () => {
             <div className="mt-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-black mb-1">
-                  Identification Number <span className="text-black/50">(If applicable)</span>
+                  Identification Number{" "}
+                  <span className="text-black/50">(If applicable)</span>
                 </label>
                 <input
                   type="text"
                   placeholder="Professional identification number"
                   value={form.identificationNumber}
-                  onChange={(e) => update("identificationNumber", e.target.value)}
+                  onChange={(e) =>
+                    update("identificationNumber", e.target.value)
+                  }
                   className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
                 />
                 <p className="mt-1 text-xs text-black/50">
@@ -450,7 +455,9 @@ const handleProviderSignup = async () => {
                   <input
                     type="checkbox"
                     checked={form.consentBackground}
-                    onChange={(e) => update("consentBackground", e.target.checked)}
+                    onChange={(e) =>
+                      update("consentBackground", e.target.checked)
+                    }
                     className="mt-1 h-4 w-4 rounded border-black/20 text-[#ff6a00] focus:ring-[#ff6a00]"
                   />
                   <span className="text-sm text-black/80">
@@ -489,9 +496,7 @@ const handleProviderSignup = async () => {
             </div>
 
             <div className="mt-6 flex justify-end">
-            {error && (
-  <p className="text-red-500 text-sm mt-4">{error}</p>
-)}
+              {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
               <button
                 type="button"
                 onClick={handleProviderSignup}
@@ -528,7 +533,10 @@ const handleProviderSignup = async () => {
                   "Complete your profile and add photos",
                   "Start receiving booking requests!",
                 ].map((text, i) => (
-                  <li key={i} className="flex items-center gap-3 text-sm text-black/80">
+                  <li
+                    key={i}
+                    className="flex items-center gap-3 text-sm text-black/80"
+                  >
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#fff5ee] text-xs font-medium text-[#ff6a00]">
                       {i + 1}
                     </span>
