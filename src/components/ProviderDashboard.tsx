@@ -12,15 +12,6 @@ type TabName =
   | "Earnings"
   | "Profile";
 
-const tabs: Array<{ name: TabName; badge?: string }> = [
-  { name: "Quotes" },
-  { name: "Overview" },
-  { name: "Requests", badge: "1" },
-  { name: "Schedule" },
-  { name: "Earnings" },
-  { name: "Profile" },
-];
-
 type ProviderProfile = {
   firstName: string;
   lastName: string;
@@ -56,6 +47,18 @@ type RecentActivityItem = {
   status: "pending" | "accepted" | "completed";
 };
 
+type Payment = {
+  id?: string;
+  amount?: number;
+  status?: string;
+  createdAt?: string;
+  homeowner?: {
+    firstName?: string;
+    lastName?: string;
+  };
+  homeownerName?: string;
+};
+
 function StatusPill({
   status,
 }: {
@@ -81,6 +84,7 @@ export default function ProviderDashboard() {
   const [profileError, setProfileError] = React.useState<string | null>(null);
   const [activeTab, setActiveTab] = React.useState<TabName>("Overview");
 
+  // ✅ NEW: State for dashboard statistics
   const [stats, setStats] = React.useState({
     newRequests: 0,
     upcomingJobs: 0,
@@ -90,16 +94,34 @@ export default function ProviderDashboard() {
     responseRate: "0%",
   });
   const [requests, setRequests] = React.useState<ServiceRequest[]>([]);
+  const [acceptedRequests, setAcceptedRequests] = React.useState<
+    ServiceRequest[]
+  >([]);
+  const [bookings, setBookings] = React.useState<Booking[]>([]);
+  const [payments, setPayments] = React.useState<Payment[]>([]);
   const [recentActivity, setRecentActivity] = React.useState<
     RecentActivityItem[]
   >([]);
   const [statsLoading, setStatsLoading] = React.useState(true);
 
+  const tabs = React.useMemo((): Array<{ name: TabName; badge?: string }> => {
+    const requestBadge = stats.newRequests > 0 ? String(stats.newRequests) : "";
+    return [
+      { name: "Quotes" },
+      { name: "Overview" },
+      { name: "Requests", badge: requestBadge || undefined },
+      { name: "Schedule" },
+      { name: "Earnings" },
+      { name: "Profile" },
+    ];
+  }, [stats.newRequests]);
+
+  // ✅ Fetch provider profile
   React.useEffect(() => {
     const fetchProfile = async () => {
       try {
         const userProfile = await apiRequest("/users/me");
-        console.log("✅ User Profile:", userProfile);
+        console.log("✅ Provider Profile:", userProfile);
         setProfile(userProfile.providerProfile);
       } catch (err: unknown) {
         const message =
@@ -126,6 +148,7 @@ export default function ProviderDashboard() {
     fetchProfile();
   }, []);
 
+  // ✅ NEW: Fetch dashboard statistics and requests
   React.useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -153,16 +176,38 @@ export default function ProviderDashboard() {
           console.error("❌ /service-requests error:", err);
         }
 
-        // 2️⃣ Filter pending requests
-        const pendingRequests = serviceRequests.filter(
-          (req: any) => req.status === "pending",
-        );
-        console.log("📊 Pending Requests Count:", pendingRequests.length);
+        // 2️⃣ Count requests by status (from provider perspective)
+        console.log("📋 Service Request Status Breakdown:");
+        serviceRequests.forEach((req: ServiceRequest) => {
+          console.log(
+            `   - ${req.service?.title || "Service"}: status = "${req.status}"`,
+          );
+        });
 
-        // 3️⃣ Get bookings
-        console.log("📍 Fetching /bookings...");
+        // New Requests = pending (homeowner just created, no quote sent yet)
+        const newRequests = serviceRequests.filter(
+          (req: ServiceRequest) => req.status === "pending",
+        );
+
+        // Accepted/In Progress = provider sent quote, homeowner accepted
+        const acceptedRequests = serviceRequests.filter(
+          (req: ServiceRequest) =>
+            req.status === "accepted" || req.status === "in-progress",
+        );
+
+        // Completed = service finished
+        const completedRequests = serviceRequests.filter(
+          (req: ServiceRequest) => req.status === "completed",
+        );
+
+        console.log("📊 New Requests (Pending):", newRequests.length);
+        console.log("📊 Accepted/In Progress:", acceptedRequests.length);
+        console.log("📊 Completed:", completedRequests.length);
+
+        // 3️⃣ Get bookings (Upcoming Jobs)
         let upcomingJobs = 0;
         let jobsCompleted = 0;
+        console.log("📍 Fetching /bookings...");
         try {
           const response = await apiRequest("/bookings");
           console.log("✅ /bookings response:", response);
@@ -176,26 +221,28 @@ export default function ProviderDashboard() {
           );
 
           if (Array.isArray(response)) {
+            const typedBookings = response as Booking[];
             const now = new Date();
-            upcomingJobs = response.filter((booking: any) => {
+            upcomingJobs = typedBookings.filter((booking: Booking) => {
               const scheduledDate = new Date(booking.scheduledAt);
               return scheduledDate > now;
             }).length;
 
-            jobsCompleted = response.filter(
-              (b: any) => b.escrowStatus === "released",
+            jobsCompleted = typedBookings.filter(
+              (b: Booking) => b.escrowStatus === "released",
             ).length;
 
-            console.log("   Upcoming Jobs (future dates):", upcomingJobs);
-            console.log("   Completed Jobs (released escrow):", jobsCompleted);
+            setBookings(typedBookings);
+            console.log("📊 Upcoming Jobs (future dates):", upcomingJobs);
+            console.log("📊 Completed Jobs (released escrow):", jobsCompleted);
           }
         } catch (err) {
           console.error("❌ /bookings error:", err);
         }
 
-        // 4️⃣ Try to get payments
-        console.log("📍 Fetching /payments...");
+        // 4️⃣ Try to get payments for monthly earnings
         let monthlyEarnings = 0;
+        console.log("📍 Fetching /payments...");
         try {
           const response = await apiRequest("/payments");
           console.log("✅ /payments response:", response);
@@ -207,44 +254,67 @@ export default function ProviderDashboard() {
             "   Length:",
             Array.isArray(response) ? response.length : "N/A",
           );
+
+          if (Array.isArray(response)) {
+            const typedPayments = response as Payment[];
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            const monthlyPayments = typedPayments.filter((payment: Payment) => {
+              if (payment.status !== "completed") return false;
+              if (!payment.createdAt) return false;
+              const paymentDate = new Date(payment.createdAt);
+              return (
+                paymentDate.getMonth() === currentMonth &&
+                paymentDate.getFullYear() === currentYear
+              );
+            });
+
+            monthlyEarnings = monthlyPayments.reduce(
+              (sum: number, payment: Payment) => sum + (payment.amount || 0),
+              0,
+            );
+
+            setPayments(typedPayments);
+            console.log("📊 Monthly Earnings:", monthlyEarnings);
+          }
         } catch (err) {
           console.error("❌ /payments error:", err);
-          console.log("   Note: This endpoint may not exist yet");
         }
 
         // 5️⃣ Get provider rating
-        console.log("📍 Fetching /users/me for rating...");
         let averageRating = 0;
         try {
           const userProfile = await apiRequest("/users/me");
           averageRating = userProfile.providerProfile?.averageRating || 0;
-          console.log("✅ Average Rating:", averageRating);
+          console.log("📊 Average Rating:", averageRating);
         } catch (err) {
           console.error("❌ Error getting rating:", err);
         }
 
-        // 6️⃣ Calculate response rate
+        // 6️⃣ Calculate response rate (requests sent quotes / total requests)
         const totalRequests = serviceRequests.length;
-        const acceptedRequests = serviceRequests.filter(
-          (req: any) => req.status === "accepted",
+        const requestsWithQuotes = serviceRequests.filter(
+          (req: ServiceRequest) => req.status !== "pending" && req.status !== "canceled",
         ).length;
         const responseRate =
           totalRequests > 0
-            ? Math.round((acceptedRequests / totalRequests) * 100)
+            ? Math.round((requestsWithQuotes / totalRequests) * 100)
             : 0;
 
         console.log("📊 Calculated Stats:");
         console.log("   Total Requests:", totalRequests);
-        console.log("   Accepted Requests:", acceptedRequests);
+        console.log("   Requests with Quotes:", requestsWithQuotes);
         console.log("   Response Rate:", `${responseRate}%`);
-        console.log("   New Requests (Pending):", pendingRequests.length);
+        console.log("   New Requests:", newRequests.length);
         console.log("   Upcoming Jobs:", upcomingJobs);
         console.log("   Jobs Completed:", jobsCompleted);
         console.log("   Monthly Earnings:", monthlyEarnings);
         console.log("   Rating:", averageRating);
 
         setStats({
-          newRequests: pendingRequests.length,
+          newRequests: newRequests.length,
           upcomingJobs: upcomingJobs,
           monthlyEarnings: monthlyEarnings,
           rating: averageRating,
@@ -252,9 +322,20 @@ export default function ProviderDashboard() {
           responseRate: `${responseRate}%`,
         });
 
-        setRequests(pendingRequests);
+        setRequests(newRequests);
+        setAcceptedRequests(acceptedRequests);
+
+        const mappedActivity: RecentActivityItem[] = [
+          ...completedRequests.slice(0, 3).map((req) => ({
+            customer: "Customer",
+            service: req.service?.title || "Service",
+            amount: "$0",
+            status: "completed" as const,
+          })),
+        ];
+        setRecentActivity(mappedActivity);
       } catch (err: unknown) {
-        console.error("❌ Overall error:", err);
+        console.error("❌ Overall error fetching dashboard data:", err);
       } finally {
         setStatsLoading(false);
       }
@@ -270,6 +351,98 @@ export default function ProviderDashboard() {
     }).format(amount);
   };
 
+  const formatMoney = (amount: number) => {
+    if (!Number.isFinite(amount)) return "—";
+    return `$${Math.round(amount)}`;
+  };
+
+  const formatShortDate = (iso?: string) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toISOString().slice(0, 10);
+  };
+
+  const parsePaymentCustomer = (p: Payment) => {
+    const fromObject = `${p.homeowner?.firstName || ""} ${p.homeowner?.lastName || ""}`.trim();
+    const fallback = p.homeownerName?.trim();
+    return fromObject || fallback || "Customer";
+  };
+
+  const earningsSnapshot = React.useMemo(() => {
+    const completed = payments.filter((p) => p?.status === "completed");
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    const lastMonthDate = new Date(year, month - 1, 1);
+
+    const sum = (list: Payment[]) =>
+      list.reduce((acc, p) => acc + (p.amount || 0), 0);
+
+    const thisMonth = sum(
+      completed.filter((p) => {
+        const d = p.createdAt ? new Date(p.createdAt) : null;
+        return (
+          !!d &&
+          !Number.isNaN(d.getTime()) &&
+          d.getMonth() === month &&
+          d.getFullYear() === year
+        );
+      }),
+    );
+
+    const lastMonth = sum(
+      completed.filter((p) => {
+        const d = p.createdAt ? new Date(p.createdAt) : null;
+        return (
+          !!d &&
+          !Number.isNaN(d.getTime()) &&
+          d.getMonth() === lastMonthDate.getMonth() &&
+          d.getFullYear() === lastMonthDate.getFullYear()
+        );
+      }),
+    );
+
+    const yearToDate = sum(
+      completed.filter((p) => {
+        const d = p.createdAt ? new Date(p.createdAt) : null;
+        return !!d && !Number.isNaN(d.getTime()) && d.getFullYear() === year;
+      }),
+    );
+
+    const averageJobValue =
+      completed.length > 0 ? Math.round(yearToDate / completed.length) : 0;
+
+    const recentPayments = [...completed]
+      .sort((a, b) => {
+        const ad = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bd = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bd - ad;
+      })
+      .slice(0, 5);
+
+    return {
+      thisMonth,
+      lastMonth,
+      yearToDate,
+      averageJobValue,
+      recentPayments,
+    };
+  }, [payments]);
+
+  const [availability, setAvailability] = React.useState(() => {
+    return {
+      Monday: { enabled: true, start: "09:00", end: "17:00" },
+      Tuesday: { enabled: true, start: "09:00", end: "17:00" },
+      Wednesday: { enabled: true, start: "09:00", end: "17:00" },
+      Thursday: { enabled: true, start: "09:00", end: "17:00" },
+      Friday: { enabled: true, start: "09:00", end: "17:00" },
+      Saturday: { enabled: false, start: "10:00", end: "14:00" },
+      Sunday: { enabled: false, start: "10:00", end: "14:00" },
+    } as Record<string, { enabled: boolean; start: string; end: string }>;
+  });
+
+  // ✅ Dynamic top stats based on fetched data
   const topStats = [
     {
       title: "New Requests",
@@ -337,6 +510,7 @@ export default function ProviderDashboard() {
             </div>
           </div>
 
+          {/* ✅ UPDATED: Dynamic stats from database */}
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {topStats.map((card) => (
               <article
@@ -469,6 +643,7 @@ export default function ProviderDashboard() {
                 </p>
               </div>
 
+              {/* ✅ UPDATED: Dynamic requests from database */}
               <div className="mt-5 space-y-4">
                 {statsLoading ? (
                   <p className="text-center text-black/60 py-8">
@@ -527,6 +702,382 @@ export default function ProviderDashboard() {
                 )}
               </div>
             </>
+          ) : activeTab === "Requests" ? (
+            <div className="mt-6 space-y-4">
+              <section className="rounded-2xl border border-black/10 bg-white p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🟡</span>
+                    <h2 className="text-xl font-semibold text-black">
+                      New Requests ({statsLoading ? "…" : requests.length})
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {statsLoading ? (
+                    <p className="py-4 text-sm text-black/60">
+                      Loading requests...
+                    </p>
+                  ) : requests.length === 0 ? (
+                    <p className="py-4 text-sm text-black/60">
+                      No new requests right now.
+                    </p>
+                  ) : (
+                    requests.map((req) => (
+                      <article
+                        key={req.id}
+                        className="rounded-2xl border border-black/10 bg-white px-4 py-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-[220px]">
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/[.05] text-sm font-semibold text-black/70">
+                                {(req.service?.title || "S")
+                                  .slice(0, 1)
+                                  .toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-black">
+                                  {req.service?.title || "Service"}
+                                </p>
+                                <p className="text-xs text-black/60">
+                                  {formatShortDate(req.preferredDate)} •{" "}
+                                  {new Date(
+                                    req.preferredDate,
+                                  ).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+
+                            <p className="mt-3 text-sm text-black/70">
+                              📍 {req.city}
+                            </p>
+                            <p className="mt-2 text-sm text-black/60">
+                              {req.description}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <button className="inline-flex items-center rounded-lg bg-[#16a34a] px-4 py-2 text-sm font-medium text-white hover:bg-[#15803d]">
+                              Accept Job
+                            </button>
+                            <button className="inline-flex items-center rounded-lg border border-black/15 bg-white px-4 py-2 text-sm font-medium text-black/75 hover:bg-black/[.02]">
+                              💬 Message
+                            </button>
+                            <button className="inline-flex items-center rounded-lg border border-black/15 bg-white px-4 py-2 text-sm font-medium text-black/75 hover:bg-black/[.02]">
+                              📞 Call
+                            </button>
+                            <button className="inline-flex items-center rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
+                              Decline
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-black/10 bg-white p-4 sm:p-5">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">✅</span>
+                  <h2 className="text-xl font-semibold text-black">
+                    Accepted Jobs (
+                    {statsLoading ? "…" : acceptedRequests.length})
+                  </h2>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {statsLoading ? (
+                    <p className="py-4 text-sm text-black/60">
+                      Loading accepted jobs...
+                    </p>
+                  ) : acceptedRequests.length === 0 ? (
+                    <p className="py-4 text-sm text-black/60">
+                      No accepted jobs yet.
+                    </p>
+                  ) : (
+                    acceptedRequests.map((req) => (
+                      <article
+                        key={req.id}
+                        className="rounded-2xl border border-black/10 bg-white px-4 py-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/[.05] text-sm font-semibold text-black/70">
+                              {(req.service?.title || "S")
+                                .slice(0, 1)
+                                .toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-black">
+                                {req.service?.title || "Service"}
+                              </p>
+                              <p className="text-xs text-black/60">
+                                {formatShortDate(req.preferredDate)} • {req.city}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-[#eaf2ff] px-2 py-0.5 text-xs text-[#2a73d9]">
+                              scheduled
+                            </span>
+                            <button className="inline-flex items-center rounded-lg bg-[#0f172a] px-4 py-2 text-sm font-medium text-white hover:bg-black">
+                              Message Customer
+                            </button>
+                            <button className="inline-flex items-center rounded-lg border border-black/15 bg-white px-4 py-2 text-sm font-medium text-black/75 hover:bg-black/[.02]">
+                              Start Job
+                            </button>
+                            <button className="inline-flex items-center rounded-lg border border-black/15 bg-white px-4 py-2 text-sm font-medium text-black/75 hover:bg-black/[.02]">
+                              Get Directions
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </section>
+            </div>
+          ) : activeTab === "Schedule" ? (
+            <div className="mt-6 rounded-2xl border border-black/10 bg-white p-4 sm:p-6">
+              <h2 className="text-xl font-semibold text-black">
+                Availability Settings
+              </h2>
+              <p className="mt-1 text-sm text-black/55">
+                Set your weekly availability to receive relevant booking requests
+              </p>
+
+              <div className="mt-5 space-y-3">
+                {Object.entries(availability).map(([day, cfg]) => (
+                  <div
+                    key={day}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-4 py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-[90px] text-sm font-medium text-black">
+                        {day}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`toggle ${day} availability`}
+                        onClick={() =>
+                          setAvailability((prev) => ({
+                            ...prev,
+                            [day]: { ...prev[day], enabled: !prev[day].enabled },
+                          }))
+                        }
+                        className={`relative h-5 w-9 rounded-full ${
+                          cfg.enabled ? "bg-[#0f172a]" : "bg-black/20"
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-[2px] h-4 w-4 rounded-full bg-white transition-all ${
+                            cfg.enabled ? "right-[2px]" : "left-[2px]"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        value={cfg.start}
+                        disabled={!cfg.enabled}
+                        onChange={(e) =>
+                          setAvailability((prev) => ({
+                            ...prev,
+                            [day]: { ...prev[day], start: e.target.value },
+                          }))
+                        }
+                        className="w-[120px] rounded-lg border border-black/10 bg-[#f5f6f8] px-3 py-2 text-sm text-black disabled:opacity-50"
+                      />
+                      <span className="text-sm text-black/50">to</span>
+                      <input
+                        type="time"
+                        value={cfg.end}
+                        disabled={!cfg.enabled}
+                        onChange={(e) =>
+                          setAvailability((prev) => ({
+                            ...prev,
+                            [day]: { ...prev[day], end: e.target.value },
+                          }))
+                        }
+                        className="w-[120px] rounded-lg border border-black/10 bg-[#f5f6f8] px-3 py-2 text-sm text-black disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 rounded-2xl border border-black/10 bg-white p-4">
+                <h3 className="text-sm font-semibold text-black">
+                  Upcoming bookings
+                </h3>
+                <div className="mt-3 space-y-2">
+                  {statsLoading ? (
+                    <p className="py-2 text-sm text-black/60">Loading…</p>
+                  ) : bookings.length === 0 ? (
+                    <p className="py-2 text-sm text-black/60">
+                      No upcoming bookings yet.
+                    </p>
+                  ) : (
+                    bookings
+                      .filter((b) => new Date(b.scheduledAt) > new Date())
+                      .slice(0, 5)
+                      .map((b) => (
+                        <div
+                          key={b.id}
+                          className="flex items-center justify-between rounded-xl border border-black/10 bg-white px-4 py-3"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-black">
+                              Booking
+                            </p>
+                            <p className="text-xs text-black/60">
+                              {new Date(b.scheduledAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-[#eaf2ff] px-2 py-0.5 text-xs text-[#2a73d9]">
+                            {b.escrowStatus}
+                          </span>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => alert("Availability saved (UI only for now).")}
+                className="mt-6 inline-flex items-center rounded-lg bg-[#0f172a] px-5 py-3 text-sm font-medium text-white hover:bg-black"
+              >
+                Save Availability
+              </button>
+            </div>
+          ) : activeTab === "Earnings" ? (
+            <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <section className="rounded-2xl border border-black/10 bg-white p-4 sm:p-6">
+                <h2 className="text-xl font-semibold text-black">
+                  Earnings Summary
+                </h2>
+
+                <dl className="mt-4 divide-y divide-black/10">
+                  <div className="flex items-center justify-between py-3">
+                    <dt className="text-sm text-black/70">This Month</dt>
+                    <dd className="text-sm font-semibold text-[#22a355]">
+                      {statsLoading ? "…" : formatMoney(earningsSnapshot.thisMonth)}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <dt className="text-sm text-black/70">Last Month</dt>
+                    <dd className="text-sm font-semibold">
+                      {statsLoading ? "…" : formatMoney(earningsSnapshot.lastMonth)}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <dt className="text-sm text-black/70">Year to Date</dt>
+                    <dd className="text-sm font-semibold">
+                      {statsLoading ? "…" : formatMoney(earningsSnapshot.yearToDate)}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <dt className="text-sm text-black/70">Average Job Value</dt>
+                    <dd className="text-sm font-semibold">
+                      {statsLoading
+                        ? "…"
+                        : formatMoney(earningsSnapshot.averageJobValue)}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className="rounded-2xl border border-black/10 bg-white p-4 sm:p-6">
+                <h2 className="text-xl font-semibold text-black">
+                  Recent Payments
+                </h2>
+
+                <div className="mt-4 space-y-3">
+                  {statsLoading ? (
+                    <p className="py-4 text-sm text-black/60">
+                      Loading payments...
+                    </p>
+                  ) : earningsSnapshot.recentPayments.length === 0 ? (
+                    <p className="py-4 text-sm text-black/60">
+                      No payments yet.
+                    </p>
+                  ) : (
+                    earningsSnapshot.recentPayments.map((p, idx) => (
+                      <article
+                        key={p.id || `${p.createdAt || "p"}-${idx}`}
+                        className="flex items-center justify-between rounded-xl border border-black/10 bg-white px-4 py-3"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-black">
+                            {parsePaymentCustomer(p)}
+                          </p>
+                          <p className="text-xs text-black/60">
+                            {formatShortDate(p.createdAt)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-[#22a355]">
+                            {formatMoney(p.amount || 0)}
+                          </p>
+                          <p className="text-xs text-black/60">Paid</p>
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </section>
+            </div>
+          ) : activeTab === "Profile" ? (
+            <div className="mt-6 rounded-2xl border border-black/10 bg-white p-5 sm:p-6">
+              <h2 className="text-xl font-semibold text-black">Profile</h2>
+              <p className="mt-1 text-sm text-black/55">
+                Your business details and preferences
+              </p>
+
+              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-black/10 bg-white px-4 py-3">
+                  <p className="text-xs text-black/60">Name</p>
+                  <p className="mt-1 text-sm font-medium text-black">
+                    {loading
+                      ? "…"
+                      : `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() ||
+                        "—"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-black/10 bg-white px-4 py-3">
+                  <p className="text-xs text-black/60">Business</p>
+                  <p className="mt-1 text-sm font-medium text-black">
+                    {loading ? "…" : profile?.businessName || "—"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-black/10 bg-white px-4 py-3">
+                  <p className="text-xs text-black/60">Primary Service</p>
+                  <p className="mt-1 text-sm font-medium text-black">
+                    {loading ? "…" : profile?.primaryService || "—"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-black/10 bg-white px-4 py-3">
+                  <p className="text-xs text-black/60">Experience</p>
+                  <p className="mt-1 text-sm font-medium text-black">
+                    {loading
+                      ? "…"
+                      : profile?.yearsExperience != null
+                        ? `${profile.yearsExperience} years`
+                        : "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="mt-6 rounded-2xl border border-black/10 bg-white p-6 text-center">
               <p className="text-sm text-black/60">
