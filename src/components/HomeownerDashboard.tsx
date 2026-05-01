@@ -3,6 +3,7 @@
 import Link from "next/link";
 import React from "react";
 import { apiRequest } from "@/lib/api";
+import BookServiceModal from "./BookServiceModal";
 
 type HomeownerProfile = {
   fullName?: string;
@@ -46,6 +47,7 @@ export default function HomeownerDashboard() {
   const [loading, setLoading] = React.useState(true);
   const [profileError, setProfileError] = React.useState<string | null>(null);
   const [activeTab, setActiveTab] = React.useState(0);
+  const [isBookServiceOpen, setIsBookServiceOpen] = React.useState(false);
 
   // ✅ State for dashboard statistics
   const [stats, setStats] = React.useState({
@@ -278,11 +280,18 @@ export default function HomeownerDashboard() {
               ) : null}
             </div>
 
-            <button className="inline-flex items-center gap-2 rounded-lg bg-[#ff6a00] px-4 py-2 text-sm font-medium text-white hover:bg-[#e85f00]">
+            <button
+              onClick={() => setIsBookServiceOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-[#ff6a00] px-4 py-2 text-sm font-medium text-white hover:bg-[#e85f00]"
+            >
               <span>+</span>
               <span>Book Service</span>
             </button>
           </div>
+          <BookServiceModal
+            isOpen={isBookServiceOpen}
+            onClose={() => setIsBookServiceOpen(false)}
+          />
 
           {/* ✅ UPDATED: Dynamic stats from database */}
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
