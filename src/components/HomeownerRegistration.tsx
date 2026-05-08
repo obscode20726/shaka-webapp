@@ -12,64 +12,99 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+// ── shared input style ────────────────────────────────────────────────────────
+const INPUT =
+  "w-full rounded-xl bg-[#f2f3f5] px-4 py-3 text-sm text-black/80 placeholder:text-black/35 focus:outline-none focus:ring-2 focus:ring-[#ff6a00]/40 border border-transparent focus:border-[#ff6a00]/30";
+
 const STEPS = [
-  { key: "location", label: "Location", percent: 50 },
-  { key: "contact", label: "Contact & Sign up", percent: 100 },
+  { key: "account", label: "Account Setup", percent: 25 },
+  { key: "profile", label: "Account Setup", percent: 50 },
+  { key: "preferences", label: "Account Setup", percent: 75 },
 ];
 
+type Step = 1 | 2 | 3 | 4; // 4 = success
+
 export default function HomeownerRegistration() {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [form, setForm] = useState({
-    city: "",
-    province: "kigali",
-    address: "",
-    fullName: "",
-    email: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const isSuccess = step === 3;
-  const currentStep = STEPS[step - 1] ?? STEPS[STEPS.length - 1];
+  // form state
+  const [form, setForm] = useState({
+    phone: "",
+    password: "",
+    confirmPassword: "",
+    firstName: "",
+    lastName: "",
+    address: "",
+    city: "",
+    zipCode: "",
+    emergencyContact: "",
+    notifEmail: true,
+    notifSMS: false,
+    notifBooking: true,
+    notifPromo: false,
+    agreeTerms: false,
+    agreePrivacy: false,
+    // kept for API compat
+    province: "kigali",
+    email: "",
+  });
+
+  const update = <K extends keyof typeof form>(
+    key: K,
+    value: (typeof form)[K],
+  ) => setForm((f) => ({ ...f, [key]: value }));
+
+  const isSuccess = step === 4;
+  const stepMeta = STEPS[step - 1] ?? STEPS[STEPS.length - 1];
 
   const goBack = () => {
-    if (step === 1) return;
-    setStep((s): 1 | 2 | 3 => (s <= 1 ? 1 : ((s - 1) as 1 | 2 | 3)));
+    if (step <= 1) return;
+    setStep((s) => (s - 1) as Step);
   };
 
-  const goNext = () => {
-    if (step === 1) setStep(2);
-  };
-
-  const update = (key: keyof typeof form, value: string) => {
-    setForm((f) => ({ ...f, [key]: value }));
-  };
-  const handleHomeownerSignup = async () => {
-    if (!form.email?.trim() || !form.password || !form.phone) {
-      setError("Email, phone, and password are required.");
+  // ── Step 1 → 2 ──────────────────────────────────────────────────────────────
+  const handleStep1 = () => {
+    setError("");
+    if (!form.phone) {
+      setError("Phone number is required.");
       return;
     }
-
-    if (!isValidEmail(form.email)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-
     if (!isValidRwandanMobile(form.phone)) {
-      setError("Please enter a valid Rwandan phone number (e.g. 0781234567).");
+      setError("Enter a valid Rwandan phone number (e.g. 0781234567).");
       return;
     }
-
+    if (!form.password) {
+      setError("Password is required.");
+      return;
+    }
     if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match");
+      setError("Passwords do not match.");
       return;
     }
+    setStep(2);
+  };
 
-    if (!form.fullName || !form.province || !form.city) {
-      setError("Full name, province, and city are required.");
+  // ── Step 2 → 3 ──────────────────────────────────────────────────────────────
+  const handleStep2 = () => {
+    setError("");
+    if (!form.firstName || !form.lastName) {
+      setError("First and last name are required.");
+      return;
+    }
+    if (!form.city) {
+      setError("City is required.");
+      return;
+    }
+    setStep(3);
+  };
+
+  // ── Step 3 → submit ─────────────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    setError("");
+    if (!form.agreeTerms || !form.agreePrivacy) {
+      setError("You must agree to the Terms of Service and Privacy Policy.");
       return;
     }
 
@@ -77,12 +112,11 @@ export default function HomeownerRegistration() {
 
     try {
       setLoading(true);
-      setError("");
 
       const data = await apiRequest("/auth/signup", {
         method: "POST",
         body: JSON.stringify({
-          email: form.email.trim(),
+          email: form.email.trim() || undefined,
           password: form.password,
           confirmPassword: form.confirmPassword,
           userType: "homeowner",
@@ -91,23 +125,23 @@ export default function HomeownerRegistration() {
       });
 
       const token = data?.token ?? data?.access_token;
-      if (!token) throw new Error("Signup succeeded but no token was returned.");
+      if (!token)
+        throw new Error("Signup succeeded but no token was returned.");
 
       localStorage.setItem("token", token);
       if (data?.user) localStorage.setItem("user", JSON.stringify(data.user));
 
-      // Create the homeowner profile (required by the backend).
       await apiRequest("/homeowners", {
         method: "POST",
         body: JSON.stringify({
-          fullName: form.fullName,
+          fullName: `${form.firstName} ${form.lastName}`.trim(),
           province: form.province,
           city: form.city,
           address: form.address,
         }),
       });
 
-      setStep(3);
+      setStep(4);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {
@@ -117,18 +151,21 @@ export default function HomeownerRegistration() {
 
   return (
     <section className="min-h-screen bg-[#f6f7f9] py-8 sm:py-12">
-      <div className="mx-auto max-w-[720px] px-4 sm:px-6">
-        {/* Top nav */}
-        <div className="mb-6 flex items-center justify-between">
+      <div className="mx-auto max-w-[620px] px-4 sm:px-6">
+        {/* ── Top nav ── */}
+        <div className="mb-5 flex items-center justify-between">
           {step === 1 ? (
-            <Link href="/" className="text-sm text-black/60 hover:text-black">
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 text-sm text-black/60 hover:text-black"
+            >
               ← Back to Home
             </Link>
           ) : !isSuccess ? (
             <button
               type="button"
               onClick={goBack}
-              className="text-sm text-black/60 hover:text-black"
+              className="flex items-center gap-1.5 text-sm text-black/60 hover:text-black"
             >
               ← Previous
             </button>
@@ -136,176 +173,84 @@ export default function HomeownerRegistration() {
             <span />
           )}
           {!isSuccess && (
-            <span className="text-sm font-medium text-black/70">
-              Step {step} of 2
-            </span>
+            <span className="text-sm text-black/50">Step {step} of 3</span>
           )}
         </div>
 
-        {/* Tabs + progress bar */}
+        {/* ── Progress bar ── */}
         {!isSuccess && (
           <div className="mb-6">
-            <div className="mb-2 flex items-center justify-between text-sm text-black/70">
-              <div className="flex gap-6">
-                {STEPS.map((s, idx) => (
-                  <span
-                    key={s.key}
-                    className={`pb-1 border-b-2 text-xs sm:text-sm ${
-                      step === idx + 1
-                        ? "border-[#ff6a00] text-[#ff6a00] font-medium"
-                        : "border-transparent text-black/50"
-                    }`}
-                  >
-                    {s.label}
-                  </span>
-                ))}
-              </div>
-              <span className="hidden text-xs text-black/60 sm:inline">
-                {currentStep.percent}% Complete
-              </span>
+            <div className="mb-1.5 flex items-center justify-between text-xs text-black/55">
+              <span>{stepMeta.label}</span>
+              <span>{stepMeta.percent}% Complete</span>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/10">
               <div
-                className="h-full rounded-full bg-[#ff6a00] transition-all duration-300"
-                style={{ width: `${currentStep.percent}%` }}
+                className="h-full rounded-full bg-[#ff6a00] transition-all duration-500"
+                style={{ width: `${stepMeta.percent}%` }}
               />
             </div>
           </div>
         )}
 
-        {/* Step 1: Location */}
+        {/* ════════════════════════════════════════════
+            STEP 1 — Create Your Account
+        ════════════════════════════════════════════ */}
         {step === 1 && (
           <div className="rounded-2xl border border-black/[.06] bg-white p-6 shadow-sm sm:p-8">
-            <h1 className="text-lg font-semibold text-black sm:text-xl">
-              Where do you need the service?
+            {/* Icon */}
+            <div className="mb-4 flex justify-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-50">
+                <svg
+                  className="h-7 w-7 text-[#ff6a00]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.6}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <h1 className="text-center text-2xl font-semibold text-black">
+              Create Your Account
             </h1>
-            <p className="mt-1 text-sm text-black/60">
-              Select your location to find nearby providers
+            <p className="mt-1 text-center text-sm text-black/50">
+              Join Shaka to start booking trusted service providers
             </p>
 
             <div className="mt-6 space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-black">
-                  Province
-                </label>
-                <select
-                  value={form.province}
-                  onChange={(e) => update("province", e.target.value)}
-                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm text-black/80 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
-                >
-                  <option value="">Select your province</option>
-                  <option value="kigali">kigali</option>
-                  <option value="north">north</option>
-                  <option value="south">south</option>
-                  <option value="east">east</option>
-                  <option value="west">west</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-black">
-                  Service Location
-                </label>
-                <select
-                  value={form.city}
-                  onChange={(e) => update("city", e.target.value)}
-                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm text-black/80 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
-                >
-                  <option value="">Select your city</option>
-                  <option value="Nyarugenge">Nyarugenge</option>
-                  <option value="Gasabo">Gasabo</option>
-                  <option value="Kicukiro">Kicukiro</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-black">
-                  Specific Address <span className="text-black/50">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter your street address"
-                  value={form.address}
-                  onChange={(e) => update("address", e.target.value)}
-                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={goNext}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#ff6a00] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#e05d00]"
-              >
-                Continue <span>→</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Contact Information */}
-        {step === 2 && (
-          <div className="rounded-2xl border border-black/[.06] bg-white p-6 shadow-sm sm:p-8">
-            <h1 className="text-lg font-semibold text-black sm:text-xl">
-              Contact Information
-            </h1>
-            <p className="mt-1 text-sm text-black/60">
-              Share your details so providers can reach you
-            </p>
-
-            <div className="mt-6 space-y-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-black">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="Your name"
-                  value={form.fullName}
-                  onChange={(e) => update("fullName", e.target.value)}
-                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-black">
-                  Email address
-                </label>
-                <input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={form.email}
-                  onChange={(e) => update("email", e.target.value)}
-                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-black">
-                  Phone number
+                <label className="mb-1.5 block text-sm font-medium text-black">
+                  Phone Number
                 </label>
                 <input
                   type="tel"
-                  placeholder="0781234567"
+                  placeholder="(555) 123-4567"
                   value={form.phone}
                   onChange={(e) => update("phone", e.target.value)}
-                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
+                  className={INPUT}
                 />
-                <p className="mt-1.5 text-xs text-black/50">
-                  You&apos;ll sign in with this number and your password.
-                </p>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-black">
+                <label className="mb-1.5 block text-sm font-medium text-black">
                   Password
                 </label>
                 <input
                   type="password"
-                  placeholder="Create a password"
+                  placeholder="Create a strong password"
                   value={form.password}
                   onChange={(e) => update("password", e.target.value)}
-                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
+                  className={INPUT}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-black">
+                <label className="mb-1.5 block text-sm font-medium text-black">
                   Confirm Password
                 </label>
                 <input
@@ -313,84 +258,343 @@ export default function HomeownerRegistration() {
                   placeholder="Confirm your password"
                   value={form.confirmPassword}
                   onChange={(e) => update("confirmPassword", e.target.value)}
-                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
+                  className={INPUT}
                 />
+              </div>
+
+              {/* Why create an account box */}
+              <div className="rounded-xl bg-[#eef2fb] px-4 py-3.5">
+                <p className="text-sm font-semibold text-black/80">
+                  Why create an account?
+                </p>
+                <ul className="mt-2 space-y-1.5 text-sm text-black/60">
+                  {[
+                    "Track your service bookings and history",
+                    "Save favorite providers for quick rebooking",
+                    "Receive updates and manage notifications",
+                    "Access exclusive deals and promotions",
+                  ].map((t) => (
+                    <li key={t}>• {t}</li>
+                  ))}
+                </ul>
               </div>
             </div>
 
-            <div className="mt-6">
-              {error ? (
-                <p className="text-red-500 text-sm">{error}</p>
-              ) : null}
-              <div className="mt-3 flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleHomeownerSignup}
-                  disabled={loading}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#ff6a00] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#e05d00]"
-                >
-                  {loading ? "Creating..." : "Sign Up"} <span>→</span>
-                </button>
-              </div>
+            {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
+
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={handleStep1}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#ff6a00] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#e05d00] active:bg-[#cc5200] disabled:opacity-60"
+              >
+                Continue <span>→</span>
+              </button>
             </div>
           </div>
         )}
 
-        {/* Success: Account Created */}
-        {isSuccess && (
-          <div className="rounded-2xl border border-black/[.06] bg-white p-6 text-center shadow-sm sm:p-8">
+        {/* ════════════════════════════════════════════
+            STEP 2 — Complete Your Profile
+        ════════════════════════════════════════════ */}
+        {step === 2 && (
+          <div className="rounded-2xl border border-black/[.06] bg-white p-6 shadow-sm sm:p-8">
+            {/* Icon */}
             <div className="mb-4 flex justify-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl text-green-600">
-                ✓
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-50">
+                <svg
+                  className="h-7 w-7 text-[#ff6a00]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.6}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
+                  />
+                </svg>
               </div>
             </div>
-            <h1 className="text-xl font-semibold text-black">
-              Welcome to Shaka!
+
+            <h1 className="text-center text-2xl font-semibold text-black">
+              Complete Your Profile
             </h1>
-            <p className="mt-1 text-sm text-black/60">
-              Your homeowner account has been created successfully.
+            <p className="mt-1 text-center text-sm text-black/50">
+              Help us provide better service recommendations
             </p>
 
-            <div className="mt-6 mx-auto max-w-xl rounded-2xl border border-black/10 bg-black/[.02] p-5 text-left">
-              <p className="text-sm font-semibold text-black">
-                Profile Summary
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2 text-sm text-black/80">
-                <span className="text-black/60">Province</span>
-                <span>{form.province || "Not provided"}</span>
-                <span className="text-black/60">City</span>
-                <span>{form.city || "Not provided"}</span>
-                <span className="text-black/60">Address</span>
-                <span>{form.address || "Not provided"}</span>
-                <span className="text-black/60">Name</span>
-                <span>{form.fullName || "Not provided"}</span>
-                <span className="text-black/60">Email</span>
-                <span>{form.email || "Not provided"}</span>
-                <span className="text-black/60">Phone</span>
-                <span>{form.phone || "Not provided"}</span>
+            <div className="mt-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-black">
+                    First Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter your first name"
+                    value={form.firstName}
+                    onChange={(e) => update("firstName", e.target.value)}
+                    className={INPUT}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-black">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter your last name"
+                    value={form.lastName}
+                    onChange={(e) => update("lastName", e.target.value)}
+                    className={INPUT}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-black">
+                  Home Address
+                </label>
+                <input
+                  type="text"
+                  placeholder="123 Main Street"
+                  value={form.address}
+                  onChange={(e) => update("address", e.target.value)}
+                  className={INPUT}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-black">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="San Francisco"
+                    value={form.city}
+                    onChange={(e) => update("city", e.target.value)}
+                    className={INPUT}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-black">
+                    Zip Code
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="94102"
+                    value={form.zipCode}
+                    onChange={(e) => update("zipCode", e.target.value)}
+                    className={INPUT}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-black">
+                  Emergency Contact{" "}
+                  <span className="font-normal text-black/40">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Name and phone number"
+                  value={form.emergencyContact}
+                  onChange={(e) => update("emergencyContact", e.target.value)}
+                  className={INPUT}
+                />
               </div>
             </div>
 
-            <div className="mt-6 mx-auto max-w-xl rounded-xl border border-[#1a73e8]/20 bg-[#e8f1ff] p-4 text-left">
-              <p className="text-sm font-semibold text-black">
-                What happens next?
+            {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
+
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={handleStep2}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#ff6a00] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#e05d00] active:bg-[#cc5200]"
+              >
+                Continue <span>→</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════
+            STEP 3 — Preferences & Terms
+        ════════════════════════════════════════════ */}
+        {step === 3 && (
+          <div className="rounded-2xl border border-black/[.06] bg-white p-6 shadow-sm sm:p-8">
+            {/* Icon */}
+            <div className="mb-4 flex justify-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-50">
+                <svg
+                  className="h-7 w-7 text-[#ff6a00]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.6}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <h1 className="text-center text-2xl font-semibold text-black">
+              Preferences &amp; Terms
+            </h1>
+            <p className="mt-1 text-center text-sm text-black/50">
+              Customize your experience and agree to our terms
+            </p>
+
+            <div className="mt-6">
+              <p className="mb-3 text-sm font-semibold text-black">
+                Notification Preferences
               </p>
-              <ul className="mt-2 space-y-1 text-sm text-black/80">
-                <li>
-                  • Browse providers near your location
-                </li>
-                <li>
-                  • Create a service request when you need help
-                </li>
-                <li>
-                  • Receive quotes and manage your bookings
-                </li>
+              <div className="space-y-3">
+                {(
+                  [
+                    { key: "notifEmail", label: "Email notifications" },
+                    { key: "notifSMS", label: "SMS notifications" },
+                    {
+                      key: "notifBooking",
+                      label: "Booking updates and reminders",
+                    },
+                    {
+                      key: "notifPromo",
+                      label: "Promotional offers and deals",
+                    },
+                  ] as const
+                ).map(({ key, label }) => (
+                  <label
+                    key={key}
+                    className="flex cursor-pointer items-center gap-3 text-sm text-black/80"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form[key]}
+                      onChange={(e) => update(key, e.target.checked)}
+                      className="h-4 w-4 rounded accent-black"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              <div className="my-5 border-t border-black/8" />
+
+              <div className="space-y-3">
+                <label className="flex cursor-pointer items-center gap-3 text-sm text-black/80">
+                  <input
+                    type="checkbox"
+                    checked={form.agreeTerms}
+                    onChange={(e) => update("agreeTerms", e.target.checked)}
+                    className="h-4 w-4 rounded accent-black"
+                  />
+                  I agree to the&nbsp;
+                  <a href="#" className="text-[#ff6a00] hover:underline">
+                    Terms of Service
+                  </a>
+                </label>
+                <label className="flex cursor-pointer items-center gap-3 text-sm text-black/80">
+                  <input
+                    type="checkbox"
+                    checked={form.agreePrivacy}
+                    onChange={(e) => update("agreePrivacy", e.target.checked)}
+                    className="h-4 w-4 rounded accent-black"
+                  />
+                  I agree to the&nbsp;
+                  <a href="#" className="text-[#ff6a00] hover:underline">
+                    Privacy Policy
+                  </a>
+                </label>
+              </div>
+            </div>
+
+            {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
+
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#ff6a00] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#e05d00] active:bg-[#cc5200] disabled:opacity-60"
+              >
+                {loading ? "Creating…" : "Create Account"} <span>→</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════
+            STEP 4 — Success / Welcome
+        ════════════════════════════════════════════ */}
+        {isSuccess && (
+          <div className="rounded-2xl border border-black/[.06] bg-white p-6 text-center shadow-sm sm:p-8">
+            {/* Green check */}
+            <div className="mb-5 flex justify-center">
+              <div className="relative flex h-16 w-16 items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-green-100/70 scale-125" />
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-green-500">
+                  <svg
+                    className="h-7 w-7 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4.5 12.75l6 6 9-13.5"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <h1 className="text-2xl font-semibold text-black">
+              Welcome to Shaka!
+            </h1>
+            <p className="mt-1 text-sm text-black/50">
+              Your account has been created successfully.
+            </p>
+
+            {/* What's Next */}
+            <div className="mt-6 rounded-xl border border-black/8 p-5 text-left">
+              <p className="text-sm font-semibold text-black">
+                What&apos;s Next?
+              </p>
+              <ul className="mt-3 space-y-3">
+                {[
+                  "Browse and book your first service",
+                  "Track your bookings in your dashboard",
+                  "Rate and review completed services",
+                ].map((item, i) => (
+                  <li
+                    key={item}
+                    className="flex items-center gap-3 text-sm text-black/80"
+                  >
+                    <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-semibold text-[#ff6a00]">
+                      {i + 1}
+                    </span>
+                    {item}
+                  </li>
+                ))}
               </ul>
             </div>
 
+            <p className="mt-5 text-sm text-black/45">
+              You can access your account dashboard anytime to manage bookings
+              and preferences.
+            </p>
+
             <Link
               href="/homeowner/dashboard"
-              className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-[#ff6a00] px-5 py-3 text-sm font-medium text-white hover:bg-[#e05d00]"
+              className="mt-5 flex w-full items-center justify-center rounded-xl bg-black py-3 text-sm font-semibold text-white hover:bg-black/85 active:bg-black/70"
             >
               Go to Dashboard
             </Link>
