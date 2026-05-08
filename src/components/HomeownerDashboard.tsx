@@ -631,21 +631,22 @@ export default function HomeownerDashboard() {
         } catch {}
 
         const upcomingRequests = serviceRequests.filter(
-          (r: any) => r.status === "pending",
+          (r) => r.status === "pending",
         );
         const inProgressRequests = serviceRequests.filter(
-          (r: any) => r.status === "accepted" || r.status === "in-progress",
+          (r) => r.status === "accepted" || r.status === "in-progress",
         );
         const completedRequests = serviceRequests.filter(
-          (r: any) => r.status === "completed",
+          (r) => r.status === "completed",
         );
 
+        type Payment = { status: string; amount?: number };
         let totalSpent = 0;
         try {
           const response = await apiRequest("/payments");
           if (Array.isArray(response)) {
-            totalSpent = response.reduce(
-              (sum: number, p: any) =>
+            totalSpent = (response as Payment[]).reduce(
+              (sum: number, p: Payment) =>
                 p.status === "completed" ? sum + (p.amount || 0) : sum,
               0,
             );
@@ -686,7 +687,7 @@ export default function HomeownerDashboard() {
     },
   ];
 
-  const updateForm = (field: keyof BookingFormData, value: any) =>
+  const updateForm = (field: keyof BookingFormData, value: BookingFormData[keyof BookingFormData]) =>
     setBookingForm((prev) => ({ ...prev, [field]: value }));
 
   const canProceed = () => {
