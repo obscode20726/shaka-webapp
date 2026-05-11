@@ -34,11 +34,12 @@ export default function HomeownerDashboard() {
     requests,
     stats,
     statsLoading,
-  } =
-    useHomeownerDashboardData();
+  } = useHomeownerDashboardData();
 
   if (isBookingFlowOpen) {
-    return <BookingFlow onBackToDashboard={() => setIsBookingFlowOpen(false)} />;
+    return (
+      <BookingFlow onBackToDashboard={() => setIsBookingFlowOpen(false)} />
+    );
   }
 
   return (
