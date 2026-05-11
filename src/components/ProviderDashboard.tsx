@@ -29,6 +29,12 @@ export default function ProviderDashboard() {
   const [activeTab, setActiveTab] = React.useState<TabName>("Overview");
   const [availability, setAvailability] =
     React.useState<Availability>(initialAvailability);
+  const handleLogout = React.useCallback(() => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    window.location.href = "/signin/provider";
+  }, []);
 
   const {
     acceptedRequests,
@@ -93,6 +99,7 @@ export default function ProviderDashboard() {
         <div className="rounded-2xl border border-black/[.07] bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.06)] sm:p-6">
           <DashboardHeader
             loading={loading}
+            onLogout={handleLogout}
             profile={profile}
             profileError={profileError}
           />

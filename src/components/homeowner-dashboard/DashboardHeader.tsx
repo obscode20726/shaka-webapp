@@ -1,19 +1,23 @@
 import Link from "next/link";
-import type { ProviderProfile } from "./types";
+import type { HomeownerProfile } from "./types";
 
 type Props = {
   loading: boolean;
+  onBookService: () => void;
   onLogout: () => void;
-  profile: ProviderProfile | null;
+  profile: HomeownerProfile | null;
   profileError: string | null;
 };
 
 export default function DashboardHeader({
   loading,
+  onBookService,
   onLogout,
   profile,
   profileError,
 }: Props) {
+  const welcomeName = profile?.fullName?.split(" ").at(0) || "Homeowner";
+
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
@@ -25,31 +29,22 @@ export default function DashboardHeader({
           <span>Back to Home</span>
         </Link>
         <h1 className="mt-2 text-2xl font-semibold text-black sm:text-[34px]">
-          {loading
-            ? "Loading dashboard..."
-            : `Welcome ${profile?.firstName || "Provider"} 👋`}
+          {loading ? "Loading dashboard..." : `Welcome back, ${welcomeName}!`}
         </h1>
-        <p className="text-sm text-black/55">
-          Manage your bookings and grow your business
-        </p>
+        <p className="text-sm text-black/55">Manage your bookings and account</p>
         {profileError ? (
           <p className="mt-2 text-sm text-red-600">{profileError}</p>
         ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-full bg-black/[.03] px-3 py-1.5">
-          <button
-            aria-label="toggle availability"
-            className="relative h-5 w-9 rounded-full bg-[#0f172a]"
-          >
-            <span className="absolute right-[2px] top-[2px] h-4 w-4 rounded-full bg-white" />
-          </button>
-          <span className="text-sm text-black/70">Available</span>
-          <span className="rounded-full bg-[#e8f8ed] px-2 py-0.5 text-xs text-[#1f9d4a]">
-            Online
-          </span>
-        </div>
+        <button
+          onClick={onBookService}
+          className="inline-flex items-center gap-2 rounded-lg bg-[#ff6a00] px-4 py-2 text-sm font-medium text-white hover:bg-[#e85f00]"
+        >
+          <span>+</span>
+          <span>Book Service</span>
+        </button>
         <button
           onClick={onLogout}
           className="inline-flex items-center gap-2 rounded-lg border border-red-400 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
