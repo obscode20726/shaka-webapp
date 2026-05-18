@@ -3,6 +3,10 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { apiRequest } from "@/lib/api";
+import {
+  isValidRwandanMobile,
+  normalizeRwandanMobileDigits,
+} from "@/lib/phone";
 
 const STEPS = [
   { label: "Create account", percent: 25 },
@@ -36,16 +40,23 @@ export default function ProviderRegistration() {
   const [error, setError] = useState("");
 
   const handleProviderSignup = async () => {
+    if (!isValidRwandanMobile(form.phone)) {
+      setError("Enter a valid Rwandan phone number (e.g. 0781234567).");
+      setStep(1);
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
+      const phoneDigits = normalizeRwandanMobileDigits(form.phone);
 
       // 1️⃣ Create account
       const authData = await apiRequest("/auth/signup", {
         method: "POST",
         body: JSON.stringify({
           email: form.email,
-          phone: form.phone,
+          phone: phoneDigits,
           password: form.password,
           confirmPassword: form.confirmPassword,
           userType: "provider",
@@ -180,11 +191,16 @@ export default function ProviderRegistration() {
                 </label>
                 <input
                   type="tel"
-                  placeholder="(555) 123-4567"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  placeholder="0781234567"
                   value={form.phone}
                   onChange={(e) => update("phone", e.target.value)}
                   className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
                 />
+                <p className="mt-1 text-xs text-black/50">
+                  Format: 07XXXXXXXX (Rwandan mobile number)
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-black mb-1">

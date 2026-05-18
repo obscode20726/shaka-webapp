@@ -1,37 +1,58 @@
+import Image from "next/image";
 import Link from "next/link";
 import React from "react";
-import Image from "next/image";
+
+const socialLinks = [
+  { href: "#", icon: "/icons/socials/facebook.svg", label: "Facebook" },
+  { href: "#", icon: "/icons/socials/instagram.svg", label: "Instagram" },
+  { href: "#", icon: "/icons/socials/linkedin.svg", label: "LinkedIn" },
+  { href: "#", icon: "/icons/socials/x.svg", label: "X" },
+];
 
 export default function Footer() {
   return (
-    <footer className="bg-[#0f1419] text-white">
-      <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8">
-          <div>
-          <Link href="#" className="text-xl font-semibold tracking-tight">
-            <Image
-              src="/shakaLogo2.svg"
-              alt="Shaka"
-              width={133}
-              height={37}
-              className="h-9 w-auto"
-              priority
-            />
+    <footer className="bg-[#111827] text-white">
+      <div className="mx-auto max-w-[1232px] px-6 py-10 sm:px-8 lg:px-0">
+        <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_410px] md:items-start">
+          <div className="max-w-[500px]">
+            <Link href="#" className="text-xl font-semibold tracking-tight">
+              <Image
+                src="/shakaLogo2.svg"
+                alt="Shaka"
+                width={133}
+                height={37}
+                className="h-[37px] w-auto"
+                priority
+              />
             </Link>
-            <p className="mt-3 text-sm text-white/70 max-w-sm">
+            <p className="mt-3 max-w-[500px] text-base leading-6 text-[#99A1AF]">
               Connecting homeowners with trusted service providers for all your
               home maintenance and improvement needs.
             </p>
-            <div className="mt-4 flex items-center gap-4 text-white/70">
-              <span></span>
-              <span></span>
-              <span></span>
+            <div className="mt-5 flex items-center gap-5">
+              {socialLinks.map((social) => (
+                <Link
+                  key={social.label}
+                  href={social.href}
+                  aria-label={social.label}
+                  className="flex h-5 w-5 items-center justify-center opacity-100 transition hover:opacity-75"
+                >
+                  <Image
+                    src={social.icon}
+                    alt=""
+                    width={21}
+                    height={21}
+                    className="max-h-5 w-auto"
+                  />
+                </Link>
+              ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 text-sm">
+
+          <div className="grid grid-cols-2 gap-16 text-base md:gap-[94px]">
             <div>
-              <h4 className="font-semibold mb-3">Services</h4>
-              <ul className="space-y-2 text-white/70">
+              <h4 className="mb-5 text-lg font-normal text-white">Services</h4>
+              <ul className="space-y-4 text-[#99A1AF]">
                 <li>Electrical</li>
                 <li>Plumbing</li>
                 <li>Gardening</li>
@@ -39,34 +60,19 @@ export default function Footer() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-3">Company</h4>
-              <ul className="space-y-2 text-white/70">
+              <h4 className="mb-5 text-lg font-normal text-white">Company</h4>
+              <ul className="space-y-4 text-[#99A1AF]">
                 <li>About Us</li>
                 <li>How It Works</li>
                 <li>Privacy Policy</li>
                 <li>Terms of Service</li>
               </ul>
             </div>
-            <div>
-              <h4 className="font-semibold mb-3">Support</h4>
-              <ul className="space-y-2 text-white/70">
-                <li>Help Center</li>
-                <li>Contact</li>
-                <li>FAQs</li>
-              </ul>
-            </div>
           </div>
         </div>
-        <div className="mt-10 border-t border-white/10 pt-6 text-xs text-white/60 flex items-center justify-between">
-          <p>© 2025 Shaka. All rights reserved.</p>
-          <div className="hidden sm:flex items-center gap-6">
-            <Link href="#" className="hover:underline">
-              Privacy Policy
-            </Link>
-            <Link href="#" className="hover:underline">
-              Terms
-            </Link>
-          </div>
+
+        <div className="mt-12 border-t border-[#364153] pt-6 text-center text-base text-[#99A1AF]">
+          <p>&copy; 2025 Shaka. All rights reserved.</p>
         </div>
       </div>
     </footer>

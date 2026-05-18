@@ -1,3 +1,4 @@
+import type React from "react";
 import type { HomeownerProfile } from "./types";
 
 type Props = {
@@ -40,7 +41,9 @@ export default function SettingsTab({ loading, profile }: Props) {
             label="Phone Number"
             value={profile?.contactPhone || ""}
             placeholder="0781234567"
+            inputMode="numeric"
             helper="Format: 07XXXXXXXX (Rwandan mobile number)"
+            type="tel"
           />
           <Field
             className="sm:col-span-2"
@@ -86,20 +89,26 @@ export default function SettingsTab({ loading, profile }: Props) {
 function Field({
   className = "",
   helper,
+  inputMode,
   label,
   placeholder,
+  type = "text",
   value,
 }: {
   className?: string;
   helper?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   label: string;
   placeholder?: string;
+  type?: React.HTMLInputTypeAttribute;
   value: string;
 }) {
   return (
     <label className={className}>
       <span className="text-sm font-semibold text-black">{label}</span>
       <input
+        type={type}
+        inputMode={inputMode}
         defaultValue={value}
         placeholder={placeholder || label}
         className="mt-2 w-full rounded-lg border-0 bg-[#f0f1f3] px-4 py-3 text-sm text-black outline-none placeholder:text-black/45"

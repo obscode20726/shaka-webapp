@@ -2,7 +2,12 @@ import React from "react";
 
 export default function Hero() {
   return (
-    <section className="w-full bg-[#fff5ee]">
+    <section
+      className="w-full"
+      style={{
+        background: "linear-gradient(180deg, #FFF7ED 0%, #FFFFFF 100%)",
+      }}
+    >
       <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
         <div className="text-center max-w-[860px] mx-auto">
           <h1 className="text-[24px] sm:text-[32px] md:text-[44px] leading-[1.15] font-semibold tracking-tight text-black gap-2">

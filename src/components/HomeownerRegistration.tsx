@@ -231,7 +231,9 @@ export default function HomeownerRegistration() {
                 </label>
                 <input
                   type="tel"
-                  placeholder="(555) 123-4567"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  placeholder="0781234567"
                   value={form.phone}
                   onChange={(e) => update("phone", e.target.value)}
                   className={INPUT}
@@ -397,7 +399,7 @@ export default function HomeownerRegistration() {
                 </label>
                 <input
                   type="text"
-                  placeholder="Name and phone number"
+                  placeholder="Name and 0781234567"
                   value={form.emergencyContact}
                   onChange={(e) => update("emergencyContact", e.target.value)}
                   className={INPUT}

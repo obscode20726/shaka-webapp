@@ -46,7 +46,7 @@ export default function HowItWorks() {
   const steps = audience === "homeowners" ? homeownerSteps : providerSteps;
 
   return (
-    <section className="bg-[#f6f7f9] py-12 sm:py-16">
+    <section className="bg-[#F9FAFB] py-12 sm:py-16">
       <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8">
         <h2 className="text-center text-[22px] sm:text-[26px] font-semibold text-black">
           How Shaka Works

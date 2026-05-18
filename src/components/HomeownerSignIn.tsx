@@ -3,6 +3,10 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { apiRequest } from "@/lib/api";
+import {
+  isValidRwandanMobile,
+  normalizeRwandanMobileDigits,
+} from "@/lib/phone";
 import { useRouter } from "next/navigation";
 
 export default function HomeownerSignIn() {
@@ -27,14 +31,20 @@ export default function HomeownerSignIn() {
       return;
     }
 
+    if (!isValidRwandanMobile(form.phone)) {
+      setError("Enter a valid Rwandan phone number (e.g. 0781234567).");
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
+      const phoneDigits = normalizeRwandanMobileDigits(form.phone);
 
       const data = await apiRequest("/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          phone: form.phone,
+          phone: phoneDigits,
           password: form.password,
         }),
       });
@@ -112,8 +122,10 @@ export default function HomeownerSignIn() {
                 Phone number
               </label>
               <input
-                type="text"
-                placeholder="Phone Number"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                placeholder="0781234567"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { isValidRwandanMobile } from "@/lib/phone";
 
 type ServiceOption = {
   icon: string;
@@ -95,6 +96,7 @@ const initialForm: BookingForm = {
 export default function BookingFlow({ onBackToDashboard }: Props) {
   const [step, setStep] = React.useState(1);
   const [isComplete, setIsComplete] = React.useState(false);
+  const [error, setError] = React.useState("");
   const [form, setForm] = React.useState(initialForm);
 
   const selectedProvider =
@@ -119,9 +121,15 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
 
   const goNext = () => {
     if (step === 4) {
+      if (!isValidRwandanMobile(form.phone)) {
+        setError("Enter a valid Rwandan phone number (e.g. 0781234567).");
+        return;
+      }
+      setError("");
       setIsComplete(true);
       return;
     }
+    setError("");
     setStep((current) => Math.min(4, current + 1));
   };
 
@@ -170,6 +178,9 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
 
           {!isComplete ? (
             <div className="mt-8 flex justify-end">
+              {error ? (
+                <p className="mr-4 self-center text-sm text-red-500">{error}</p>
+              ) : null}
               <button
                 type="button"
                 onClick={goNext}
@@ -415,7 +426,9 @@ function DetailsStep({
         <TextField
           label="Phone Number"
           onChange={(value) => update("phone", value)}
-          placeholder="Your phone number"
+          inputMode="numeric"
+          placeholder="0781234567"
+          type="tel"
           value={form.phone}
         />
         <div className="md:col-span-2">
@@ -474,7 +487,7 @@ function BookingComplete({
             label="Location:"
             value={form.city || form.address || "San Francisco, CA"}
           />
-          <SummaryRow label="Contact:" value={form.phone || "67783"} />
+          <SummaryRow label="Contact:" value={form.phone || "0781234567"} />
         </dl>
       </div>
 
@@ -501,20 +514,26 @@ function BookingComplete({
 }
 
 function TextField({
+  inputMode,
   label,
   onChange,
   placeholder,
+  type = "text",
   value,
 }: {
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   label: string;
   onChange: (value: string) => void;
   placeholder: string;
+  type?: React.HTMLInputTypeAttribute;
   value: string;
 }) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-black">{label}</span>
       <input
+        type={type}
+        inputMode={inputMode}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
