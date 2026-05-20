@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { ProviderProfile } from "./types";
 
 type Props = {
@@ -54,7 +55,13 @@ export default function DashboardHeader({
           onClick={onLogout}
           className="inline-flex items-center gap-2 rounded-lg border border-red-400 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
         >
-          <span aria-hidden="true">[-&gt;</span>
+          <Image
+            src="/icons/logout.svg"
+            alt=""
+            width={16}
+            height={16}
+            aria-hidden="true"
+          />
           <span>Logout</span>
         </button>
       </div>
