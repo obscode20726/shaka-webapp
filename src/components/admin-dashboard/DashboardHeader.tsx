@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 type Props = {
@@ -7,14 +8,18 @@ type Props = {
 export default function DashboardHeader({ onLogout }: Props) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
-      <div className="flex items-center gap-7">
+      <div className="flex items-start gap-7">
         <Link
           href="/"
-          className="inline-flex items-center gap-3 text-base font-medium text-black hover:text-black/70"
+          className="mt-5 inline-flex items-center gap-3 text-base font-medium text-black hover:text-black/70"
         >
-          <span className="text-xl leading-none" aria-hidden="true">
-            &larr;
-          </span>
+          <Image
+            src="/icons/back.svg"
+            alt=""
+            width={16}
+            height={16}
+            aria-hidden="true"
+          />
           <span>Back</span>
         </Link>
         <div>
@@ -32,9 +37,13 @@ export default function DashboardHeader({ onLogout }: Props) {
         onClick={onLogout}
         className="mt-1 inline-flex h-9 items-center gap-3 rounded-lg border border-[#ff6467] bg-white px-4 text-sm font-medium text-[#fb2c36] hover:bg-red-50"
       >
-        <span aria-hidden="true" className="text-lg leading-none">
-          &#8618;
-        </span>
+        <Image
+          src="/icons/logout.svg"
+          alt=""
+          width={16}
+          height={16}
+          aria-hidden="true"
+        />
         <span>Logout</span>
       </button>
     </div>
