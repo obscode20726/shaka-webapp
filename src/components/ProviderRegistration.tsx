@@ -8,6 +8,10 @@ import {
   normalizeRwandanMobileDigits,
 } from "@/lib/phone";
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 const STEPS = [
   { label: "Create account", percent: 25 },
   { label: "Professional info", percent: 50 },
@@ -46,6 +50,12 @@ export default function ProviderRegistration() {
       return;
     }
 
+    if (!isValidEmail(form.email)) {
+      setError("Enter a valid email address.");
+      setStep(1);
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
@@ -55,7 +65,7 @@ export default function ProviderRegistration() {
       const authData = await apiRequest("/auth/signup", {
         method: "POST",
         body: JSON.stringify({
-          email: form.email,
+          email: form.email.trim(),
           phone: phoneDigits,
           password: form.password,
           confirmPassword: form.confirmPassword,

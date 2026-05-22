@@ -1,44 +1,42 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import React, { useState } from "react";
+import React from "react";
 import { apiRequest } from "@/lib/api";
 import {
   isValidRwandanMobile,
   normalizeRwandanMobileDigits,
 } from "@/lib/phone";
 
+const INPUT =
+  "h-9 w-full rounded-lg border-0 bg-[#f0f0f2] px-3 text-sm text-black outline-none placeholder:text-[#697282] focus:ring-2 focus:ring-[#ff6a00]/35";
+
+const STEPS = [
+  { label: "Account Setup", percent: 25 },
+  { label: "Account Setup", percent: 50 },
+  { label: "Account Setup", percent: 75 },
+];
+
+type Step = 1 | 2 | 3 | 4;
+
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
-// ── shared input style ────────────────────────────────────────────────────────
-const INPUT =
-  "w-full rounded-xl bg-[#f2f3f5] px-4 py-3 text-sm text-black/80 placeholder:text-black/35 focus:outline-none focus:ring-2 focus:ring-[#ff6a00]/40 border border-transparent focus:border-[#ff6a00]/30";
-
-const STEPS = [
-  { key: "account", label: "Account Setup", percent: 25 },
-  { key: "profile", label: "Account Setup", percent: 50 },
-  { key: "preferences", label: "Account Setup", percent: 75 },
-];
-
-type Step = 1 | 2 | 3 | 4; // 4 = success
-
 export default function HomeownerRegistration() {
-  const [step, setStep] = useState<Step>(1);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  // form state
-  const [form, setForm] = useState({
+  const [step, setStep] = React.useState<Step>(1);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const [form, setForm] = React.useState({
     phone: "",
+    email: "",
     password: "",
     confirmPassword: "",
     firstName: "",
     lastName: "",
     address: "",
     city: "",
-    zipCode: "",
     emergencyContact: "",
     notifEmail: true,
     notifSMS: false,
@@ -46,33 +44,40 @@ export default function HomeownerRegistration() {
     notifPromo: false,
     agreeTerms: false,
     agreePrivacy: false,
-    // kept for API compat
     province: "kigali",
-    email: "",
   });
 
   const update = <K extends keyof typeof form>(
     key: K,
     value: (typeof form)[K],
-  ) => setForm((f) => ({ ...f, [key]: value }));
+  ) => setForm((current) => ({ ...current, [key]: value }));
 
   const isSuccess = step === 4;
-  const stepMeta = STEPS[step - 1] ?? STEPS[STEPS.length - 1];
+  const stepMeta = STEPS[step - 1] ?? STEPS[2];
 
   const goBack = () => {
     if (step <= 1) return;
-    setStep((s) => (s - 1) as Step);
+    setError("");
+    setStep((current) => (current - 1) as Step);
   };
 
-  // ── Step 1 → 2 ──────────────────────────────────────────────────────────────
   const handleStep1 = () => {
     setError("");
+
     if (!form.phone) {
       setError("Phone number is required.");
       return;
     }
     if (!isValidRwandanMobile(form.phone)) {
       setError("Enter a valid Rwandan phone number (e.g. 0781234567).");
+      return;
+    }
+    if (!form.email.trim()) {
+      setError("Email address is required.");
+      return;
+    }
+    if (!isValidEmail(form.email)) {
+      setError("Enter a valid email address.");
       return;
     }
     if (!form.password) {
@@ -83,12 +88,13 @@ export default function HomeownerRegistration() {
       setError("Passwords do not match.");
       return;
     }
+
     setStep(2);
   };
 
-  // ── Step 2 → 3 ──────────────────────────────────────────────────────────────
   const handleStep2 = () => {
     setError("");
+
     if (!form.firstName || !form.lastName) {
       setError("First and last name are required.");
       return;
@@ -97,49 +103,68 @@ export default function HomeownerRegistration() {
       setError("City is required.");
       return;
     }
+
     setStep(3);
   };
 
-  // ── Step 3 → submit ─────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     setError("");
+
     if (!form.agreeTerms || !form.agreePrivacy) {
       setError("You must agree to the Terms of Service and Privacy Policy.");
       return;
     }
 
-    const phoneDigits = normalizeRwandanMobileDigits(form.phone);
-
     try {
       setLoading(true);
+      const phoneDigits = normalizeRwandanMobileDigits(form.phone);
 
       const data = await apiRequest("/auth/signup", {
         method: "POST",
         body: JSON.stringify({
-          email: form.email.trim() || undefined,
+          email: form.email.trim(),
+          phone: phoneDigits,
           password: form.password,
           confirmPassword: form.confirmPassword,
           userType: "homeowner",
-          phone: phoneDigits,
         }),
       });
+
+      const profilePayload = {
+        fullName: `${form.firstName} ${form.lastName}`.trim(),
+        province: form.province,
+        city: form.city,
+        address: form.address,
+        contactEmail: form.email.trim(),
+        contactPhone: phoneDigits,
+        ownerStats: {
+          upcomingBookings: 0,
+          jobsInProgress: 0,
+          completedJobs: 0,
+          totalAmountSpent: 0,
+        },
+      };
+
+      sessionStorage.setItem("pending_signup_email", form.email.trim());
+      sessionStorage.setItem(
+        "pending_homeowner_profile",
+        JSON.stringify(profilePayload),
+      );
+      if (data?.user) {
+        sessionStorage.setItem("pending_signup_user", JSON.stringify(data.user));
+      }
 
       const token = data?.token ?? data?.access_token;
-      if (!token)
-        throw new Error("Signup succeeded but no token was returned.");
-
-      localStorage.setItem("token", token);
-      if (data?.user) localStorage.setItem("user", JSON.stringify(data.user));
-
-      await apiRequest("/homeowners", {
-        method: "POST",
-        body: JSON.stringify({
-          fullName: `${form.firstName} ${form.lastName}`.trim(),
-          province: form.province,
-          city: form.city,
-          address: form.address,
-        }),
-      });
+      if (token) {
+        localStorage.setItem("token", token);
+        if (data?.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        }
+        await apiRequest("/homeowners", {
+          method: "POST",
+          body: JSON.stringify(profilePayload),
+        });
+      }
 
       setStep(4);
     } catch (err: unknown) {
@@ -150,459 +175,443 @@ export default function HomeownerRegistration() {
   };
 
   return (
-    <section className="min-h-screen bg-[#f6f7f9] py-8 sm:py-12">
-      <div className="mx-auto max-w-[620px] px-4 sm:px-6">
-        {/* ── Top nav ── */}
-        <div className="mb-5 flex items-center justify-between">
+    <section className="min-h-screen bg-[#f6f7f9] py-16 sm:py-[92px]">
+      <div className="mx-auto w-full max-w-[640px] px-4">
+        <div className="mb-10 flex items-center justify-between">
           {step === 1 ? (
             <Link
               href="/"
-              className="flex items-center gap-1.5 text-sm text-black/60 hover:text-black"
+              className="inline-flex items-center gap-3 text-sm font-medium text-black hover:text-black/70"
             >
-              ← Back to Home
+              <Image src="/icons/back.svg" alt="" width={16} height={16} />
+              Back to Home
             </Link>
-          ) : !isSuccess ? (
+          ) : (
             <button
               type="button"
               onClick={goBack}
-              className="flex items-center gap-1.5 text-sm text-black/60 hover:text-black"
+              className="inline-flex items-center gap-3 text-sm font-medium text-black hover:text-black/70"
             >
-              ← Previous
+              <Image src="/icons/back.svg" alt="" width={16} height={16} />
+              Previous
             </button>
-          ) : (
-            <span />
           )}
-          {!isSuccess && (
-            <span className="text-sm text-black/50">Step {step} of 3</span>
-          )}
+
+          {!isSuccess ? (
+            <span className="text-sm text-[#4A5565]">Step {step} of 3</span>
+          ) : null}
         </div>
 
-        {/* ── Progress bar ── */}
-        {!isSuccess && (
-          <div className="mb-6">
-            <div className="mb-1.5 flex items-center justify-between text-xs text-black/55">
+        {!isSuccess ? (
+          <div className="mb-8">
+            <div className="mb-2 flex items-center justify-between text-sm text-black">
               <span>{stepMeta.label}</span>
               <span>{stepMeta.percent}% Complete</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/10">
+            <div className="h-2 overflow-hidden rounded-full bg-[#e5e7eb]">
               <div
-                className="h-full rounded-full bg-[#ff6a00] transition-all duration-500"
+                className="h-full rounded-full bg-[#ff6a00] transition-all duration-300"
                 style={{ width: `${stepMeta.percent}%` }}
               />
             </div>
           </div>
-        )}
+        ) : null}
 
-        {/* ════════════════════════════════════════════
-            STEP 1 — Create Your Account
-        ════════════════════════════════════════════ */}
-        {step === 1 && (
-          <div className="rounded-2xl border border-black/[.06] bg-white p-6 shadow-sm sm:p-8">
-            {/* Icon */}
-            <div className="mb-4 flex justify-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-50">
-                <svg
-                  className="h-7 w-7 text-[#ff6a00]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.6}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            <h1 className="text-center text-2xl font-semibold text-black">
+        {step === 1 ? (
+          <SignupCard>
+            <HeaderIcon type="user" />
+            <h1 className="mt-5 text-center text-2xl font-medium text-black">
               Create Your Account
             </h1>
-            <p className="mt-1 text-center text-sm text-black/50">
+            <p className="mt-3 text-center text-base text-[#4A5565]">
               Join Shaka to start booking trusted service providers
             </p>
 
-            <div className="mt-6 space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-black">
-                  Phone Number
-                </label>
+            <div className="mx-auto mt-6 max-w-[574px] space-y-4">
+              <Field label="Phone Number">
                 <input
                   type="tel"
                   inputMode="numeric"
                   autoComplete="tel"
-                  placeholder="0781234567"
+                  placeholder="0787839342"
                   value={form.phone}
-                  onChange={(e) => update("phone", e.target.value)}
+                  onChange={(event) => update("phone", event.target.value)}
                   className={INPUT}
                 />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-black">
-                  Password
-                </label>
+              </Field>
+              <Field label="Email Address">
+                <input
+                  type="email"
+                  autoComplete="email"
+                  placeholder="storehaapa@gmail.com"
+                  value={form.email}
+                  onChange={(event) => update("email", event.target.value)}
+                  className={INPUT}
+                />
+              </Field>
+              <Field label="Password">
                 <input
                   type="password"
                   placeholder="Create a strong password"
                   value={form.password}
-                  onChange={(e) => update("password", e.target.value)}
+                  onChange={(event) => update("password", event.target.value)}
                   className={INPUT}
                 />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-black">
-                  Confirm Password
-                </label>
+              </Field>
+              <Field label="Confirm Password">
                 <input
                   type="password"
                   placeholder="Confirm your password"
                   value={form.confirmPassword}
-                  onChange={(e) => update("confirmPassword", e.target.value)}
+                  onChange={(event) =>
+                    update("confirmPassword", event.target.value)
+                  }
                   className={INPUT}
                 />
-              </div>
+              </Field>
 
-              {/* Why create an account box */}
-              <div className="rounded-xl bg-[#eef2fb] px-4 py-3.5">
-                <p className="text-sm font-semibold text-black/80">
+              <div className="rounded-lg bg-[#eef6ff] px-4 py-5">
+                <p className="text-base font-medium text-black">
                   Why create an account?
                 </p>
-                <ul className="mt-2 space-y-1.5 text-sm text-black/60">
-                  {[
-                    "Track your service bookings and history",
-                    "Save favorite providers for quick rebooking",
-                    "Receive updates and manage notifications",
-                    "Access exclusive deals and promotions",
-                  ].map((t) => (
-                    <li key={t}>• {t}</li>
-                  ))}
+                <ul className="mt-3 space-y-1.5 text-sm leading-5 text-[#4A5565]">
+                  <li>• Track your service bookings and history</li>
+                  <li>• Save favorite providers for quick rebooking</li>
+                  <li>• Receive updates and manage notifications</li>
+                  <li>• Access exclusive deals and promotions</li>
                 </ul>
               </div>
             </div>
+          </SignupCard>
+        ) : null}
 
-            {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
-
-            <div className="mt-5 flex justify-end">
-              <button
-                type="button"
-                onClick={handleStep1}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#ff6a00] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#e05d00] active:bg-[#cc5200] disabled:opacity-60"
-              >
-                Continue <span>→</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ════════════════════════════════════════════
-            STEP 2 — Complete Your Profile
-        ════════════════════════════════════════════ */}
-        {step === 2 && (
-          <div className="rounded-2xl border border-black/[.06] bg-white p-6 shadow-sm sm:p-8">
-            {/* Icon */}
-            <div className="mb-4 flex justify-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-50">
-                <svg
-                  className="h-7 w-7 text-[#ff6a00]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.6}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            <h1 className="text-center text-2xl font-semibold text-black">
+        {step === 2 ? (
+          <SignupCard>
+            <HeaderIcon type="home" />
+            <h1 className="mt-5 text-center text-2xl font-medium text-black">
               Complete Your Profile
             </h1>
-            <p className="mt-1 text-center text-sm text-black/50">
+            <p className="mt-3 text-center text-base text-[#4A5565]">
               Help us provide better service recommendations
             </p>
 
-            <div className="mt-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-black">
-                    First Name
-                  </label>
+            <div className="mx-auto mt-6 max-w-[574px] space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="First Name">
                   <input
                     type="text"
                     placeholder="Enter your first name"
                     value={form.firstName}
-                    onChange={(e) => update("firstName", e.target.value)}
+                    onChange={(event) =>
+                      update("firstName", event.target.value)
+                    }
                     className={INPUT}
                   />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-black">
-                    Last Name
-                  </label>
+                </Field>
+                <Field label="Last Name">
                   <input
                     type="text"
                     placeholder="Enter your last name"
                     value={form.lastName}
-                    onChange={(e) => update("lastName", e.target.value)}
+                    onChange={(event) => update("lastName", event.target.value)}
                     className={INPUT}
                   />
-                </div>
+                </Field>
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-black">
-                  Home Address
-                </label>
+              <Field label="Home Address">
                 <input
                   type="text"
-                  placeholder="123 Main Street"
+                  placeholder="KG 12 Ave"
                   value={form.address}
-                  onChange={(e) => update("address", e.target.value)}
+                  onChange={(event) => update("address", event.target.value)}
                   className={INPUT}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-black">
-                    City
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="San Francisco"
-                    value={form.city}
-                    onChange={(e) => update("city", e.target.value)}
-                    className={INPUT}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-black">
-                    Zip Code
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="94102"
-                    value={form.zipCode}
-                    onChange={(e) => update("zipCode", e.target.value)}
-                    className={INPUT}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-black">
-                  Emergency Contact{" "}
-                  <span className="font-normal text-black/40">(Optional)</span>
-                </label>
+              </Field>
+              <Field label="City">
                 <input
                   type="text"
-                  placeholder="Name and 0781234567"
-                  value={form.emergencyContact}
-                  onChange={(e) => update("emergencyContact", e.target.value)}
+                  placeholder="Kigali"
+                  value={form.city}
+                  onChange={(event) => update("city", event.target.value)}
                   className={INPUT}
+                />
+              </Field>
+              <Field label="Emergency Contact (Optional)">
+                <input
+                  type="text"
+                  placeholder="Name and phone number"
+                  value={form.emergencyContact}
+                  onChange={(event) =>
+                    update("emergencyContact", event.target.value)
+                  }
+                  className={INPUT}
+                />
+              </Field>
+            </div>
+          </SignupCard>
+        ) : null}
+
+        {step === 3 ? (
+          <SignupCard className="min-h-[576px]">
+            <HeaderIcon type="shield" />
+            <h1 className="mt-5 text-center text-2xl font-medium text-black">
+              Preferences &amp; Terms
+            </h1>
+            <p className="mt-3 text-center text-base text-[#4A5565]">
+              Customize your experience and agree to our terms
+            </p>
+
+            <div className="mx-auto mt-6 max-w-[574px]">
+              <p className="text-sm font-medium text-black">
+                Notification Preferences
+              </p>
+              <div className="mt-3 space-y-3">
+                <Checkbox
+                  checked={form.notifEmail}
+                  label="Email notifications"
+                  onChange={(checked) => update("notifEmail", checked)}
+                />
+                <Checkbox
+                  checked={form.notifSMS}
+                  label="SMS notifications"
+                  onChange={(checked) => update("notifSMS", checked)}
+                />
+                <Checkbox
+                  checked={form.notifBooking}
+                  label="Booking updates and reminders"
+                  onChange={(checked) => update("notifBooking", checked)}
+                />
+                <Checkbox
+                  checked={form.notifPromo}
+                  label="Promotional offers and deals"
+                  onChange={(checked) => update("notifPromo", checked)}
+                />
+              </div>
+
+              <div className="my-6 border-t border-[#d9d9df]" />
+
+              <div className="space-y-4">
+                <Checkbox
+                  checked={form.agreeTerms}
+                  label={
+                    <>
+                      I agree to the{" "}
+                      <Link href="#" className="text-[#ff6a00]">
+                        Terms of Service
+                      </Link>
+                    </>
+                  }
+                  onChange={(checked) => update("agreeTerms", checked)}
+                />
+                <Checkbox
+                  checked={form.agreePrivacy}
+                  label={
+                    <>
+                      I agree to the{" "}
+                      <Link href="#" className="text-[#ff6a00]">
+                        Privacy Policy
+                      </Link>
+                    </>
+                  }
+                  onChange={(checked) => update("agreePrivacy", checked)}
                 />
               </div>
             </div>
+          </SignupCard>
+        ) : null}
 
-            {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
-
-            <div className="mt-5 flex justify-end">
-              <button
-                type="button"
-                onClick={handleStep2}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#ff6a00] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#e05d00] active:bg-[#cc5200]"
-              >
-                Continue <span>→</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ════════════════════════════════════════════
-            STEP 3 — Preferences & Terms
-        ════════════════════════════════════════════ */}
-        {step === 3 && (
-          <div className="rounded-2xl border border-black/[.06] bg-white p-6 shadow-sm sm:p-8">
-            {/* Icon */}
-            <div className="mb-4 flex justify-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-50">
+        {isSuccess ? (
+          <SignupCard className="px-8 py-12 text-center sm:px-24">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#dcfce7]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#00c950] text-white">
                 <svg
-                  className="h-7 w-7 text-[#ff6a00]"
+                  className="h-5 w-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
-                  strokeWidth={1.6}
+                  strokeWidth={2.4}
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
+                    d="m6 12 4 4 8-8"
                   />
                 </svg>
               </div>
             </div>
-
-            <h1 className="text-center text-2xl font-semibold text-black">
-              Preferences &amp; Terms
-            </h1>
-            <p className="mt-1 text-center text-sm text-black/50">
-              Customize your experience and agree to our terms
-            </p>
-
-            <div className="mt-6">
-              <p className="mb-3 text-sm font-semibold text-black">
-                Notification Preferences
-              </p>
-              <div className="space-y-3">
-                {(
-                  [
-                    { key: "notifEmail", label: "Email notifications" },
-                    { key: "notifSMS", label: "SMS notifications" },
-                    {
-                      key: "notifBooking",
-                      label: "Booking updates and reminders",
-                    },
-                    {
-                      key: "notifPromo",
-                      label: "Promotional offers and deals",
-                    },
-                  ] as const
-                ).map(({ key, label }) => (
-                  <label
-                    key={key}
-                    className="flex cursor-pointer items-center gap-3 text-sm text-black/80"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={form[key]}
-                      onChange={(e) => update(key, e.target.checked)}
-                      className="h-4 w-4 rounded accent-black"
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-
-              <div className="my-5 border-t border-black/8" />
-
-              <div className="space-y-3">
-                <label className="flex cursor-pointer items-center gap-3 text-sm text-black/80">
-                  <input
-                    type="checkbox"
-                    checked={form.agreeTerms}
-                    onChange={(e) => update("agreeTerms", e.target.checked)}
-                    className="h-4 w-4 rounded accent-black"
-                  />
-                  I agree to the&nbsp;
-                  <a href="#" className="text-[#ff6a00] hover:underline">
-                    Terms of Service
-                  </a>
-                </label>
-                <label className="flex cursor-pointer items-center gap-3 text-sm text-black/80">
-                  <input
-                    type="checkbox"
-                    checked={form.agreePrivacy}
-                    onChange={(e) => update("agreePrivacy", e.target.checked)}
-                    className="h-4 w-4 rounded accent-black"
-                  />
-                  I agree to the&nbsp;
-                  <a href="#" className="text-[#ff6a00] hover:underline">
-                    Privacy Policy
-                  </a>
-                </label>
-              </div>
-            </div>
-
-            {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
-
-            <div className="mt-5 flex justify-end">
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={loading}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#ff6a00] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#e05d00] active:bg-[#cc5200] disabled:opacity-60"
-              >
-                {loading ? "Creating…" : "Create Account"} <span>→</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ════════════════════════════════════════════
-            STEP 4 — Success / Welcome
-        ════════════════════════════════════════════ */}
-        {isSuccess && (
-          <div className="rounded-2xl border border-black/[.06] bg-white p-6 text-center shadow-sm sm:p-8">
-            {/* Green check */}
-            <div className="mb-5 flex justify-center">
-              <div className="relative flex h-16 w-16 items-center justify-center">
-                <div className="absolute inset-0 rounded-full bg-green-100/70 scale-125" />
-                <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-green-500">
-                  <svg
-                    className="h-7 w-7 text-white"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M4.5 12.75l6 6 9-13.5"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <h1 className="text-2xl font-semibold text-black">
+            <h1 className="mt-8 text-3xl font-medium text-black">
               Welcome to Shaka!
             </h1>
-            <p className="mt-1 text-sm text-black/50">
-              Your account has been created successfully.
+            <p className="mt-5 text-base text-[#4A5565]">
+              Your account has been created successfully. Please verify your
+              email with the OTP sent to your inbox.
             </p>
 
-            {/* What's Next */}
-            <div className="mt-6 rounded-xl border border-black/8 p-5 text-left">
-              <p className="text-sm font-semibold text-black">
-                What&apos;s Next?
-              </p>
-              <ul className="mt-3 space-y-3">
+            <div className="mx-auto mt-7 rounded-xl border border-[#d9d9df] p-6 text-left">
+              <p className="text-base font-medium text-black">What&apos;s Next?</p>
+              <ol className="mt-6 space-y-4">
                 {[
+                  "Verify your email with the signup OTP",
+                  "Sign in with your phone number and password",
                   "Browse and book your first service",
-                  "Track your bookings in your dashboard",
-                  "Rate and review completed services",
-                ].map((item, i) => (
+                ].map((item, index) => (
                   <li
                     key={item}
-                    className="flex items-center gap-3 text-sm text-black/80"
+                    className="flex items-center gap-3 text-base text-black"
                   >
-                    <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-semibold text-[#ff6a00]">
-                      {i + 1}
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ffedd4] text-[#ff5f00]">
+                      {index + 1}
                     </span>
                     {item}
                   </li>
                 ))}
-              </ul>
+              </ol>
             </div>
 
-            <p className="mt-5 text-sm text-black/45">
-              You can access your account dashboard anytime to manage bookings
-              and preferences.
+            <p className="mx-auto mt-7 max-w-[360px] text-sm leading-5 text-[#4A5565]">
+              We saved your profile details locally so they can be completed
+              after verification and login.
             </p>
 
             <Link
-              href="/homeowner/dashboard"
-              className="mt-5 flex w-full items-center justify-center rounded-xl bg-black py-3 text-sm font-semibold text-white hover:bg-black/85 active:bg-black/70"
+              href="/signin/homeowner"
+              className="mx-auto mt-6 flex h-9 max-w-[320px] items-center justify-center rounded-lg bg-[#030014] text-sm font-medium text-white hover:bg-black"
             >
-              Go to Dashboard
+              Go to Sign In
             </Link>
+          </SignupCard>
+        ) : null}
+
+        {error ? <p className="mt-4 text-sm text-red-500">{error}</p> : null}
+
+        {!isSuccess ? (
+          <div className="mt-6 flex justify-end">
+            {step === 1 ? (
+              <ActionButton onClick={handleStep1}>Continue</ActionButton>
+            ) : step === 2 ? (
+              <ActionButton onClick={handleStep2}>Continue</ActionButton>
+            ) : (
+              <ActionButton disabled={loading} onClick={handleSubmit}>
+                {loading ? "Creating..." : "Create Account"}
+              </ActionButton>
+            )}
           </div>
-        )}
+        ) : null}
       </div>
     </section>
+  );
+}
+
+function SignupCard({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`rounded-xl border border-[#d9d9df] bg-white px-8 py-9 ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Field({
+  children,
+  label,
+}: {
+  children: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium text-black">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function Checkbox({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: React.ReactNode;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 text-sm text-black">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="h-4 w-4 rounded border-[#d9d9df] accent-[#030014]"
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+function ActionButton({
+  children,
+  disabled = false,
+  onClick,
+}: {
+  children: React.ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="inline-flex h-9 items-center gap-3 rounded-lg bg-[#ffaf75] px-4 text-sm font-medium text-white hover:bg-[#ff8d3d] disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {children}
+      <span aria-hidden="true">&rarr;</span>
+    </button>
+  );
+}
+
+function HeaderIcon({ type }: { type: "home" | "shield" | "user" }) {
+  const paths = {
+    user: (
+      <>
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
+      </>
+    ),
+    home: (
+      <>
+        <path d="M3 11.5 12 4l9 7.5" />
+        <path d="M6 10.5V20h12v-9.5" />
+        <path d="M10 20v-6h4v6" />
+      </>
+    ),
+    shield: (
+      <path d="M12 3 5 6v5c0 5 3.5 8 7 10 3.5-2 7-5 7-10V6l-7-3Z" />
+    ),
+  };
+
+  return (
+    <div className="flex justify-center">
+      <svg
+        className="h-11 w-11 text-[#ff6a00]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2.1}
+        aria-hidden="true"
+      >
+        {paths[type]}
+      </svg>
+    </div>
   );
 }

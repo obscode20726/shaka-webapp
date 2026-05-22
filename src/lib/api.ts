@@ -1,39 +1,77 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export async function apiRequest(endpoint: string, options: RequestInit = {}) {
+type ApiRequestOptions = RequestInit & {
+  auth?: boolean;
+};
+
+type ErrorBody = {
+  detail?: unknown;
+  details?: unknown;
+  error?: unknown;
+  errors?: Record<string, unknown>;
+  message?: unknown;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function apiRequest<T = any>(
+  endpoint: string,
+  options: ApiRequestOptions = {},
+): Promise<T> {
   if (!API_URL) {
     throw new Error("Missing NEXT_PUBLIC_API_URL environment variable");
   }
+
+  const { auth, headers, ...requestOptions } = options;
+  const shouldSendAuth = auth ?? !endpoint.startsWith("/auth/");
   const token = localStorage.getItem("token");
 
   const res = await fetch(`${API_URL}${endpoint}`, {
     headers: {
       "Content-Type": "application/json",
-      ...(token && {
+      ...(headers || {}),
+      ...(shouldSendAuth && token && {
         Authorization: `Bearer ${token}`,
       }),
     },
-    ...options,
+    ...requestOptions,
   });
 
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: unknown = null;
 
-  if (!res.ok) {
-    const msg = data?.message;
-    const detail =
-      Array.isArray(msg) ? msg.join(". ") : typeof msg === "string" ? msg : "";
-    const errors =
-      data?.errors && typeof data.errors === "object"
-        ? Object.entries(data.errors as Record<string, unknown>)
-            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
-            .join("; ")
-        : "";
-    const combined = [detail, errors].filter(Boolean).join(" — ");
-    throw new Error(combined || data?.error || "Something went wrong");
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
   }
 
-  return data;
+  if (!res.ok) {
+    const body = typeof data === "object" && data ? (data as ErrorBody) : null;
+    const msg = body?.message ?? body?.detail;
+    const detail =
+      Array.isArray(msg) ? msg.join(". ") : typeof msg === "string" ? msg : "";
+    const detailList =
+      Array.isArray(body?.details) || Array.isArray(body?.detail)
+        ? ((body?.details ?? body?.detail) as unknown[]).join(". ")
+        : "";
+    const errors =
+      body?.errors && typeof body.errors === "object"
+        ? Object.entries(body.errors)
+            .map(([key, value]) =>
+              `${key}: ${Array.isArray(value) ? value.join(", ") : String(value)}`,
+            )
+            .join("; ")
+        : "";
+    const error = typeof body?.error === "string" ? body.error : "";
+    const fallback = typeof data === "string" ? data : "";
+    const combined = [detail, detailList, errors, error, fallback]
+      .filter(Boolean)
+      .join(" - ");
+
+    throw new Error(combined || `Request failed with status ${res.status}`);
+  }
+
+  return data as T;
 }
 
 export const providerLogin = async (data: {
@@ -48,7 +86,7 @@ export const providerLogin = async (data: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
-    }
+    },
   );
 
   if (!res.ok) {
