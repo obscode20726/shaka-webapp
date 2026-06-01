@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 import { apiRequest } from "@/lib/api";
+import SignupOtpVerification from "@/components/SignupOtpVerification";
 import {
   isValidRwandanMobile,
   normalizeRwandanMobileDigits,
@@ -18,7 +19,7 @@ const STEPS = [
   { label: "Account Setup", percent: 75 },
 ];
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -52,7 +53,7 @@ export default function HomeownerRegistration() {
     value: (typeof form)[K],
   ) => setForm((current) => ({ ...current, [key]: value }));
 
-  const isSuccess = step === 4;
+  const isSuccess = step === 5;
   const stepMeta = STEPS[step - 1] ?? STEPS[2];
 
   const goBack = () => {
@@ -130,40 +131,13 @@ export default function HomeownerRegistration() {
         }),
       });
 
-      const profilePayload = {
-        fullName: `${form.firstName} ${form.lastName}`.trim(),
-        province: form.province,
-        city: form.city,
-        address: form.address,
-        contactEmail: form.email.trim(),
-        contactPhone: phoneDigits,
-        ownerStats: {
-          upcomingBookings: 0,
-          jobsInProgress: 0,
-          completedJobs: 0,
-          totalAmountSpent: 0,
-        },
-      };
-
       sessionStorage.setItem("pending_signup_email", form.email.trim());
       sessionStorage.setItem(
         "pending_homeowner_profile",
-        JSON.stringify(profilePayload),
+        JSON.stringify(buildHomeownerProfilePayload()),
       );
       if (data?.user) {
         sessionStorage.setItem("pending_signup_user", JSON.stringify(data.user));
-      }
-
-      const token = data?.token ?? data?.access_token;
-      if (token) {
-        localStorage.setItem("token", token);
-        if (data?.user) {
-          localStorage.setItem("user", JSON.stringify(data.user));
-        }
-        await apiRequest("/homeowners", {
-          method: "POST",
-          body: JSON.stringify(profilePayload),
-        });
       }
 
       setStep(4);
@@ -173,6 +147,118 @@ export default function HomeownerRegistration() {
       setLoading(false);
     }
   };
+
+  const buildHomeownerProfilePayload = () => {
+    const phoneDigits = normalizeRwandanMobileDigits(form.phone);
+
+    return {
+      fullName: `${form.firstName} ${form.lastName}`.trim(),
+      province: form.province,
+      city: form.city,
+      address: form.address,
+      contactEmail: form.email.trim(),
+      contactPhone: phoneDigits,
+    };
+  };
+
+  const persistAuth = (data: {
+    token?: string;
+    access_token?: string;
+    user?: unknown;
+  }) => {
+    const token = data.token ?? data.access_token;
+    if (!token) {
+      throw new Error("Authentication succeeded but no token was returned.");
+    }
+
+    localStorage.setItem("token", token);
+    document.cookie = `token=${encodeURIComponent(token)}; Path=/; SameSite=Lax`;
+
+    if (data.user) {
+      localStorage.setItem("user", JSON.stringify(data.user));
+    }
+  };
+
+  const completeProfileAfterOtp = async (verificationData?: {
+    token?: string;
+    access_token?: string;
+    user?: unknown;
+  }) => {
+    if (verificationData?.token || verificationData?.access_token) {
+      persistAuth(verificationData);
+    } else {
+      const loginData = await apiRequest("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          phone: normalizeRwandanMobileDigits(form.phone),
+          password: form.password,
+        }),
+      });
+      persistAuth(loginData);
+    }
+
+    await apiRequest("/homeowners", {
+      method: "POST",
+      body: JSON.stringify(buildHomeownerProfilePayload()),
+    });
+  };
+
+  const handleVerifyOtp = async (otp: string) => {
+    setError("");
+
+    try {
+      setLoading(true);
+      const verificationData = await apiRequest("/auth/verify-signup-otp", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.email.trim(),
+          otp,
+        }),
+      });
+
+      await completeProfileAfterOtp(verificationData);
+      sessionStorage.removeItem("pending_signup_email");
+      sessionStorage.removeItem("pending_homeowner_profile");
+      sessionStorage.removeItem("pending_signup_user");
+      setStep(5);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setError("");
+
+    try {
+      setLoading(true);
+      await apiRequest("/auth/resend-signup-otp", {
+        method: "POST",
+        body: JSON.stringify({ email: form.email.trim() }),
+      });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to resend code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (step === 4) {
+    return (
+      <SignupOtpVerification
+        email={form.email.trim()}
+        loading={loading}
+        error={error}
+        onBack={() => {
+          setError("");
+          setStep(3);
+        }}
+        onResend={handleResendOtp}
+        onVerify={handleVerifyOtp}
+      />
+    );
+  }
 
   return (
     <section className="min-h-screen bg-[#f6f7f9] py-16 sm:py-[92px]">
@@ -444,8 +530,8 @@ export default function HomeownerRegistration() {
               Welcome to Shaka!
             </h1>
             <p className="mt-5 text-base text-[#4A5565]">
-              Your account has been created successfully. Please verify your
-              email with the OTP sent to your inbox.
+              Your account has been verified and your homeowner profile has
+              been created successfully.
             </p>
 
             <div className="mx-auto mt-7 rounded-xl border border-[#d9d9df] p-6 text-left">
@@ -453,7 +539,7 @@ export default function HomeownerRegistration() {
               <ol className="mt-6 space-y-4">
                 {[
                   "Verify your email with the signup OTP",
-                  "Sign in with your phone number and password",
+                  "Sign in anytime with your phone number and password",
                   "Browse and book your first service",
                 ].map((item, index) => (
                   <li
@@ -470,15 +556,14 @@ export default function HomeownerRegistration() {
             </div>
 
             <p className="mx-auto mt-7 max-w-[360px] text-sm leading-5 text-[#4A5565]">
-              We saved your profile details locally so they can be completed
-              after verification and login.
+              You are signed in and ready to start booking trusted services.
             </p>
 
             <Link
-              href="/signin/homeowner"
+              href="/homeowner/dashboard"
               className="mx-auto mt-6 flex h-9 max-w-[320px] items-center justify-center rounded-lg bg-[#030014] text-sm font-medium text-white hover:bg-black"
             >
-              Go to Sign In
+              Go to Dashboard
             </Link>
           </SignupCard>
         ) : null}

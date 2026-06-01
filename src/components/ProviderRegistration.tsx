@@ -3,6 +3,7 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { apiRequest } from "@/lib/api";
+import SignupOtpVerification from "@/components/SignupOtpVerification";
 import {
   isValidRwandanMobile,
   normalizeRwandanMobileDigits,
@@ -16,8 +17,16 @@ const STEPS = [
   { label: "Create account", percent: 25 },
   { label: "Professional info", percent: 50 },
   { label: "Verification", percent: 75 },
+  { label: "Email verification", percent: 90 },
   { label: "Complete", percent: 100 },
 ];
+
+function parseYearsExperience(value: string) {
+  if (value === "5+") return 5;
+
+  const firstNumber = Number(value.split("-")[0]);
+  return Number.isFinite(firstNumber) ? firstNumber : 0;
+}
 
 export default function ProviderRegistration() {
   const [step, setStep] = useState(1);
@@ -43,6 +52,62 @@ export default function ProviderRegistration() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const buildProviderProfilePayload = () => ({
+    firstName: form.firstName,
+    lastName: form.lastName,
+    businessName: form.businessName,
+    primaryService: form.primaryService,
+    yearsExperience: parseYearsExperience(form.yearsExperience),
+    serviceArea: form.serviceArea,
+    serviceDescription: form.serviceDescription,
+    identificationNumber: form.identificationNumber,
+    consentBackground: form.consentBackground,
+    consentTerms: form.consentTerms,
+    consentPrivacy: form.consentPrivacy,
+  });
+
+  const persistAuth = (data: {
+    token?: string;
+    access_token?: string;
+    user?: unknown;
+  }) => {
+    const token = data.token ?? data.access_token;
+    if (!token) {
+      throw new Error("Authentication succeeded but no token was returned.");
+    }
+
+    localStorage.setItem("token", token);
+    document.cookie = `token=${encodeURIComponent(token)}; Path=/; SameSite=Lax`;
+
+    if (data.user) {
+      localStorage.setItem("user", JSON.stringify(data.user));
+    }
+  };
+
+  const completeProfileAfterOtp = async (verificationData?: {
+    token?: string;
+    access_token?: string;
+    user?: unknown;
+  }) => {
+    if (verificationData?.token || verificationData?.access_token) {
+      persistAuth(verificationData);
+    } else {
+      const loginData = await apiRequest("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          phone: normalizeRwandanMobileDigits(form.phone),
+          password: form.password,
+        }),
+      });
+      persistAuth(loginData);
+    }
+
+    await apiRequest("/providers", {
+      method: "POST",
+      body: JSON.stringify(buildProviderProfilePayload()),
+    });
+  };
+
   const handleProviderSignup = async () => {
     if (!isValidRwandanMobile(form.phone)) {
       setError("Enter a valid Rwandan phone number (e.g. 0781234567).");
@@ -53,6 +118,27 @@ export default function ProviderRegistration() {
     if (!isValidEmail(form.email)) {
       setError("Enter a valid email address.");
       setStep(1);
+      return;
+    }
+
+    if (!form.password || form.password !== form.confirmPassword) {
+      setError("Passwords are required and must match.");
+      setStep(1);
+      return;
+    }
+
+    if (!form.firstName || !form.lastName || !form.primaryService) {
+      setError("First name, last name, and primary service are required.");
+      setStep(2);
+      return;
+    }
+
+    if (
+      !form.consentBackground ||
+      !form.consentTerms ||
+      !form.consentPrivacy
+    ) {
+      setError("Please accept the verification and terms requirements.");
       return;
     }
 
@@ -74,28 +160,21 @@ export default function ProviderRegistration() {
       });
 
       // 2️⃣ Save token
-      localStorage.setItem("token", authData.token);
-      localStorage.setItem("user", JSON.stringify(authData.user));
+      sessionStorage.setItem("pending_signup_email", form.email.trim());
+      sessionStorage.setItem(
+        "pending_provider_profile",
+        JSON.stringify(buildProviderProfilePayload()),
+      );
+      if (authData?.user) {
+        sessionStorage.setItem("pending_signup_user", JSON.stringify(authData.user));
+      }
+
+      setStep(4);
+
 
       // 3️⃣ Create provider profile
-      await apiRequest("/providers", {
-        method: "POST",
-        body: JSON.stringify({
-          firstName: form.firstName,
-          lastName: form.lastName,
-          businessName: form.businessName,
-          primaryService: form.primaryService,
-          yearsExperience: Number(form.yearsExperience) || 0,
-          serviceArea: form.serviceArea,
-          serviceDescription: form.serviceDescription,
-          consentBackground: form.consentBackground,
-          consentTerms: form.consentTerms,
-          consentPrivacy: form.consentPrivacy,
-        }),
-      });
 
       // ✅ SUCCESS → go to step 4
-      setStep(4);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "signup failed";
       setError(message);
@@ -104,9 +183,49 @@ export default function ProviderRegistration() {
     }
   };
 
+  const handleVerifyOtp = async (otp: string) => {
+    setError("");
+
+    try {
+      setLoading(true);
+      const verificationData = await apiRequest("/auth/verify-signup-otp", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.email.trim(),
+          otp,
+        }),
+      });
+
+      await completeProfileAfterOtp(verificationData);
+      sessionStorage.removeItem("pending_signup_email");
+      sessionStorage.removeItem("pending_provider_profile");
+      sessionStorage.removeItem("pending_signup_user");
+      setStep(5);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setError("");
+
+    try {
+      setLoading(true);
+      await apiRequest("/auth/resend-signup-otp", {
+        method: "POST",
+        body: JSON.stringify({ email: form.email.trim() }),
+      });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to resend code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const currentPercent = STEPS[step - 1]?.percent ?? 100;
-  const isLastStep = step === 3;
-  const isSuccess = step === 4;
+  const isSuccess = step === 5;
 
   const goBack = () => {
     if (step === 1) return;
@@ -120,6 +239,22 @@ export default function ProviderRegistration() {
   const update = (key: keyof typeof form, value: string | boolean) => {
     setForm((f) => ({ ...f, [key]: value }));
   };
+
+  if (step === 4) {
+    return (
+      <SignupOtpVerification
+        email={form.email.trim()}
+        loading={loading}
+        error={error}
+        onBack={() => {
+          setError("");
+          setStep(3);
+        }}
+        onResend={handleResendOtp}
+        onVerify={handleVerifyOtp}
+      />
+    );
+  }
 
   return (
     <section className="min-h-screen bg-[#f6f7f9] py-8 sm:py-12">

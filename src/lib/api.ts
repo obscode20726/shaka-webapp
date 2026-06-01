@@ -12,6 +12,17 @@ type ErrorBody = {
   message?: unknown;
 };
 
+function friendlyServerError(endpoint: string) {
+  if (
+    endpoint === "/auth/signup" ||
+    endpoint === "/auth/resend-signup-otp"
+  ) {
+    return "The account was submitted, but the server could not send the verification email. Please try again later or contact support.";
+  }
+
+  return "";
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function apiRequest<T = any>(
   endpoint: string,
@@ -64,7 +75,12 @@ export async function apiRequest<T = any>(
         : "";
     const error = typeof body?.error === "string" ? body.error : "";
     const fallback = typeof data === "string" ? data : "";
-    const combined = [detail, detailList, errors, error, fallback]
+    const serverHint = res.status >= 500 ? friendlyServerError(endpoint) : "";
+    const combined = (
+      serverHint
+        ? [serverHint]
+        : [detail, detailList, errors, error, fallback]
+    )
       .filter(Boolean)
       .join(" - ");
 
