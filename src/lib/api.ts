@@ -13,11 +13,16 @@ type ErrorBody = {
 };
 
 function friendlyServerError(endpoint: string) {
-  if (
-    endpoint === "/auth/signup" ||
-    endpoint === "/auth/resend-signup-otp"
-  ) {
+  if (endpoint === "/auth/signup" || endpoint === "/auth/resend-signup-otp") {
     return "The account was submitted, but the server could not send the verification email. Please try again later or contact support.";
+  }
+
+  if (endpoint === "/auth/forgot-password") {
+    return "We could not send the verification code to your email. Please try again later or contact support.";
+  }
+
+  if (endpoint === "/auth/reset-password") {
+    return "Could not reset your password. Please check your verification code and try again.";
   }
 
   return "";

@@ -167,7 +167,7 @@ export default function ProviderSignIn() {
                 Remember me
               </label>
               <Link
-                href="#"
+                href="/signin/provider/forgot-password"
                 className="text-sm font-medium text-[#ff6a00] hover:underline"
               >
                 Forgot password?
