@@ -117,3 +117,19 @@ export const providerLogin = async (data: {
 
   return res.json();
 };
+
+/**
+ * Admin login using database credentials via the backend API
+ * @param credentials - Admin email and password
+ * @returns Token and user data
+ */
+export const adminLogin = async (credentials: {
+  email: string;
+  password: string;
+}) => {
+  return apiRequest("/auth/admin-login", {
+    method: "POST",
+    body: JSON.stringify(credentials),
+    auth: false,
+  });
+};
