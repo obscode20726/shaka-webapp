@@ -134,3 +134,40 @@ export const adminLogin = async (credentials: {
     auth: false,
   });
 };
+
+/**
+ * Create a service request (booking)
+ * @param request - Service request data from booking form
+ * @returns Created service request with ID
+ */
+export interface CreateServiceRequestPayload {
+  serviceId: string;
+  city: string;
+  address?: string;
+  preferredDate: string;
+  preferredTime: string;
+  description: string;
+}
+
+export interface ServiceRequestResponse {
+  id: string;
+  homeownerId: string;
+  serviceId: string;
+  city: string;
+  address?: string;
+  preferredDate: string;
+  preferredTime?: string;
+  description: string;
+  status: "pending" | "accepted" | "in_progress" | "completed" | "cancelled";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const createServiceRequest = async (
+  payload: CreateServiceRequestPayload,
+): Promise<ServiceRequestResponse> => {
+  return apiRequest("/api/service-requests", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};

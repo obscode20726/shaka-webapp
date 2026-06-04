@@ -2,6 +2,7 @@
 
 import React from "react";
 import { isValidRwandanMobile } from "@/lib/phone";
+import { createServiceRequest, type CreateServiceRequestPayload } from "@/lib/api";
 
 type ServiceOption = {
   icon: string;
@@ -80,6 +81,15 @@ const providers: ProviderOption[] = [
   },
 ];
 
+// Service slug mapping for API
+const serviceSlugMap: Record<string, string> = {
+  removal: "removal",
+  plumbing: "plumbing",
+  gardening: "gardening",
+  cleaning: "cleaning",
+  painting: "painting",
+};
+
 const initialForm: BookingForm = {
   service: "",
   city: "",
@@ -97,6 +107,7 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
   const [step, setStep] = React.useState(1);
   const [isComplete, setIsComplete] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
   const [form, setForm] = React.useState(initialForm);
 
   const selectedProvider =
@@ -119,6 +130,47 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
     setStep((current) => Math.max(1, current - 1));
   };
 
+  const handleSubmitBooking = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      // Convert date and time to ISO format
+      const dateStr = form.date; // Format: YYYY-MM-DD
+      const timeStr = form.time; // Format: HH:MM AM/PM
+      
+      // Combine date and time
+      let dateTime: string;
+      if (timeStr) {
+        const [time, period] = timeStr.split(" ");
+        const [hours, minutes] = time.split(":");
+        let hour = parseInt(hours, 10);
+        if (period === "PM" && hour !== 12) hour += 12;
+        if (period === "AM" && hour === 12) hour = 0;
+        dateTime = new Date(`${dateStr}T${String(hour).padStart(2, "0")}:${minutes}:00`).toISOString();
+      } else {
+        dateTime = new Date(`${dateStr}T08:00:00`).toISOString();
+      }
+
+      const payload: CreateServiceRequestPayload = {
+        serviceId: serviceSlugMap[form.service] || form.service,
+        city: form.city,
+        address: form.address || undefined,
+        preferredDate: dateTime,
+        preferredTime: form.time,
+        description: form.description,
+      };
+
+      await createServiceRequest(payload);
+      
+      setIsComplete(true);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to create booking";
+      setError(errorMessage);
+      setLoading(false);
+    }
+  };
+
   const goNext = () => {
     if (step === 4) {
       if (!isValidRwandanMobile(form.phone)) {
@@ -126,7 +178,7 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
         return;
       }
       setError("");
-      setIsComplete(true);
+      handleSubmitBooking();
       return;
     }
     setError("");
@@ -141,7 +193,8 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
             <button
               type="button"
               onClick={goPrevious}
-              className="inline-flex items-center gap-4 text-sm font-medium text-black"
+              disabled={loading}
+              className="inline-flex items-center gap-4 text-sm font-medium text-black disabled:opacity-50"
             >
               <span className="text-lg">←</span>
               <span>{step === 1 && !isComplete ? "Back to Home" : "Previous"}</span>
@@ -184,10 +237,11 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
               <button
                 type="button"
                 onClick={goNext}
-                className="inline-flex items-center gap-4 rounded-lg bg-[#ffad7a] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#ff8b47]"
+                disabled={loading}
+                className="inline-flex items-center gap-4 rounded-lg bg-[#ffad7a] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#ff8b47] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>{step === 4 ? "Book Service" : "Continue"}</span>
-                <span>→</span>
+                <span>{loading ? "Processing..." : step === 4 ? "Book Service" : "Continue"}</span>
+                <span>{!loading && "→"}</span>
               </button>
             </div>
           ) : null}
@@ -467,7 +521,7 @@ function BookingComplete({
         Booking Request Sent!
       </h1>
       <p className="mt-2 text-sm text-black/60">
-        Your booking request has been sent to the provider
+        Your booking request has been sent to available providers
       </p>
 
       <div className="mx-auto mt-7 max-w-[520px] rounded-xl border border-black/10 bg-white p-6 text-left">
@@ -494,9 +548,9 @@ function BookingComplete({
       <div className="mt-7 rounded-lg border border-[#99c2ff] bg-[#e8f1ff] p-4 text-left text-sm text-[#1242c9]">
         <p className="font-semibold">What happens next?</p>
         <ul className="mt-2 list-disc space-y-1 pl-4">
-          <li>The provider will visit your location at the scheduled time</li>
-          <li>They&apos;ll assess the work and create a detailed quote</li>
-          <li>You&apos;ll receive the quote in your dashboard for review</li>
+          <li>Your request has been sent to available providers</li>
+          <li>Providers will review your request and submit quotes</li>
+          <li>You&apos;ll receive quotes in your dashboard for review</li>
           <li>Once you approve, payment will be held in escrow</li>
           <li>Payment is released after work is completed</li>
         </ul>
