@@ -119,15 +119,16 @@ export const providerLogin = async (data: {
 };
 
 /**
- * Admin login using database credentials via the backend API
- * @param credentials - Admin email and password
- * @returns Token and user data
+ * Admin login using the regular /auth/login endpoint
+ * Backend validates admin role and only returns token if user has admin privileges
+ * @param credentials - Admin phone and password
+ * @returns Token and user data with admin role
  */
 export const adminLogin = async (credentials: {
-  email: string;
+  phone: string;
   password: string;
 }) => {
-  return apiRequest("/auth/admin-login", {
+  return apiRequest("/auth/login", {
     method: "POST",
     body: JSON.stringify(credentials),
     auth: false,
