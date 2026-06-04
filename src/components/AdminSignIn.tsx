@@ -62,11 +62,12 @@ function LockIcon() {
   );
 }
 
-interface AdminLoginResponse {
+interface AuthLoginResponse {
   token: string;
   user: {
     id: string;
-    email: string;
+    email?: string;
+    phone?: string;
     type: string;
     role?: string;
   };
@@ -74,7 +75,7 @@ interface AdminLoginResponse {
 
 export default function AdminSignIn() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -83,30 +84,39 @@ export default function AdminSignIn() {
     e.preventDefault();
     setError("");
 
-    if (!email.trim() || !password) {
-      setError("Email and password are required.");
+    if (!phone.trim() || !password) {
+      setError("Phone number and password are required.");
       return;
     }
 
     setLoading(true);
 
     try {
-      // Call the admin login endpoint with real database credentials
-      const response = await apiRequest<AdminLoginResponse>("/auth/admin-login", {
+      // Call the regular login endpoint with admin credentials
+      // The backend validates that the user has admin role
+      const response = await apiRequest<AuthLoginResponse>("/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          email: email.trim(),
+          phone: phone.trim(),
           password,
         }),
+        auth: false,
       });
 
       if (response.token && response.user) {
+        // Check if user has admin role
+        if (response.user.type !== "admin" && response.user.role !== "admin") {
+          setError("Access denied. Admin privileges required.");
+          setLoading(false);
+          return;
+        }
+
         // Store the JWT token and admin session
         localStorage.setItem("token", response.token);
         localStorage.setItem("admin_session", JSON.stringify({
           userId: response.user.id,
-          email: response.user.email,
-          role: response.user.role || "admin",
+          phone: response.user.phone || phone,
+          role: response.user.role || response.user.type,
           loginTime: new Date().toISOString(),
         }));
 
@@ -117,7 +127,7 @@ export default function AdminSignIn() {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Login failed";
-      setError(errorMessage || "Invalid email or password");
+      setError(errorMessage || "Invalid phone number or password");
     } finally {
       setLoading(false);
     }
@@ -144,23 +154,23 @@ export default function AdminSignIn() {
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div>
               <label
-                htmlFor="admin-email"
+                htmlFor="admin-phone"
                 className="mb-1 block text-sm font-semibold text-black"
               >
-                Email
+                Phone Number
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
                   <UserIcon />
                 </span>
                 <input
-                  id="admin-email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="Enter admin email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="admin-phone"
+                  name="phone"
+                  type="tel"
+                  autoComplete="tel"
+                  placeholder="Enter admin phone number"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   className="w-full rounded-xl border border-transparent bg-[#f3f4f6] py-2.5 pl-10 pr-3 text-sm text-black outline-none ring-[#f97316] placeholder:text-black/40 focus:ring-2"
                 />
               </div>
@@ -197,9 +207,9 @@ export default function AdminSignIn() {
             ) : null}
 
             <div className="rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-3 py-2.5 text-sm text-[#1d4ed8]">
-              <p className="font-semibold">Note:</p>
+              <p className="font-semibold">Admin Login</p>
               <p className="mt-1">
-                Please use your registered admin account credentials. Ensure your admin user account exists in the database with appropriate permissions.
+                Use your registered admin account credentials. Only users with admin role can access this portal.
               </p>
             </div>
 
