@@ -3,9 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
-
-const DEMO_USERNAME = "admin";
-const DEMO_PASSWORD = "admin123";
+import { apiRequest } from "@/lib/api";
 
 function ShieldIcon() {
   return (
@@ -64,33 +62,65 @@ function LockIcon() {
   );
 }
 
+interface AdminLoginResponse {
+  token: string;
+  user: {
+    id: string;
+    email: string;
+    type: string;
+    role?: string;
+  };
+}
+
 export default function AdminSignIn() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (!username.trim() || !password) {
-      setError("Username and password are required.");
+    if (!email.trim() || !password) {
+      setError("Email and password are required.");
       return;
     }
 
     setLoading(true);
 
-    // UI-only: validate against demo credentials until API is wired up.
-    if (username.trim() === DEMO_USERNAME && password === DEMO_PASSWORD) {
-      sessionStorage.setItem("admin_session", "demo");
-      router.push("/admin/dashboard");
-      return;
-    }
+    try {
+      // Call the admin login endpoint with real database credentials
+      const response = await apiRequest<AdminLoginResponse>("/auth/admin-login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
+      });
 
-    setError("Invalid username or password");
-    setLoading(false);
+      if (response.token && response.user) {
+        // Store the JWT token and admin session
+        localStorage.setItem("token", response.token);
+        localStorage.setItem("admin_session", JSON.stringify({
+          userId: response.user.id,
+          email: response.user.email,
+          role: response.user.role || "admin",
+          loginTime: new Date().toISOString(),
+        }));
+
+        // Redirect to admin dashboard
+        router.push("/admin/dashboard");
+      } else {
+        setError("Invalid response from server. Please try again.");
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Login failed";
+      setError(errorMessage || "Invalid email or password");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -114,23 +144,23 @@ export default function AdminSignIn() {
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div>
               <label
-                htmlFor="admin-username"
+                htmlFor="admin-email"
                 className="mb-1 block text-sm font-semibold text-black"
               >
-                Username
+                Email
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
                   <UserIcon />
                 </span>
                 <input
-                  id="admin-username"
-                  name="username"
-                  type="text"
-                  autoComplete="username"
-                  placeholder="Enter admin username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  id="admin-email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="Enter admin email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-xl border border-transparent bg-[#f3f4f6] py-2.5 pl-10 pr-3 text-sm text-black outline-none ring-[#f97316] placeholder:text-black/40 focus:ring-2"
                 />
               </div>
@@ -167,18 +197,9 @@ export default function AdminSignIn() {
             ) : null}
 
             <div className="rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-3 py-2.5 text-sm text-[#1d4ed8]">
-              <p className="font-semibold">Demo Credentials:</p>
+              <p className="font-semibold">Note:</p>
               <p className="mt-1">
-                Username:{" "}
-                <code className="rounded bg-[#dbeafe] px-1 font-mono text-xs">
-                  {DEMO_USERNAME}
-                </code>
-              </p>
-              <p>
-                Password:{" "}
-                <code className="rounded bg-[#dbeafe] px-1 font-mono text-xs">
-                  {DEMO_PASSWORD}
-                </code>
+                Please use your registered admin account credentials. Ensure your admin user account exists in the database with appropriate permissions.
               </p>
             </div>
 
