@@ -1,4 +1,54 @@
-import type { Payment } from "./types";
+import type { Payment, ServiceRequest } from "./types";
+
+export function normalizeRequestStatus(status?: string) {
+  if (!status) return "pending";
+  const normalized = status.toLowerCase().replace(/_/g, "-");
+  return normalized === "cancelled" ? "canceled" : normalized;
+}
+
+export function isPendingRequest(status?: string) {
+  const normalized = normalizeRequestStatus(status);
+  return (
+    normalized === "pending" ||
+    normalized === "open" ||
+    normalized === "new" ||
+    normalized === "awaiting" ||
+    normalized === "awaiting-quote"
+  );
+}
+
+export function isActiveRequest(status?: string) {
+  const normalized = normalizeRequestStatus(status);
+  return (
+    normalized === "accepted" ||
+    normalized === "in-progress" ||
+    normalized === "scheduled" ||
+    normalized === "active"
+  );
+}
+
+/** Requests that belong on the provider Requests tab (not completed/canceled). */
+export function isProviderVisibleRequest(status?: string) {
+  return isPendingRequest(status) || isActiveRequest(status);
+}
+
+export function isCompletedRequest(status: string) {
+  return normalizeRequestStatus(status) === "completed";
+}
+
+export function isCanceledRequest(status: string) {
+  return normalizeRequestStatus(status) === "canceled";
+}
+
+export function parseHomeownerName(
+  homeowner?: ServiceRequest["homeowner"],
+) {
+  const fullName = homeowner?.fullName?.trim();
+  if (fullName) return fullName;
+
+  const name = `${homeowner?.firstName || ""} ${homeowner?.lastName || ""}`.trim();
+  return name || "Customer";
+}
 
 export function formatCurrency(amount: number) {
   return new Intl.NumberFormat("rw-RW", {
@@ -17,6 +67,37 @@ export function formatShortDate(iso?: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toISOString().slice(0, 10);
+}
+
+export function formatRequestTime(
+  preferredDate?: string,
+  preferredTime?: string,
+) {
+  if (preferredTime?.trim()) return preferredTime.trim();
+
+  if (!preferredDate) return "-";
+  const date = new Date(preferredDate);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export function formatRequestLocation(request: {
+  address?: string;
+  city?: string;
+}) {
+  const parts = [request.address, request.city].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : "-";
+}
+
+export function formatAcceptedStatus(status: string) {
+  const normalized = normalizeRequestStatus(status);
+  if (normalized === "in-progress") return "In Progress";
+  if (normalized === "accepted") return "Scheduled";
+  return status.replace(/_/g, " ");
 }
 
 export function parsePaymentCustomer(payment: Payment) {

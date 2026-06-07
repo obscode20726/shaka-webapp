@@ -2,23 +2,30 @@
 
 import React from "react";
 import { isValidRwandanMobile } from "@/lib/phone";
-import { createServiceRequest, type CreateServiceRequestPayload } from "@/lib/api";
+import {
+  createServiceRequest,
+  fetchProviders,
+  fetchServices,
+  type CreateServiceRequestPayload,
+  type ProviderProfile,
+} from "@/lib/api";
 
 type ServiceOption = {
   icon: string;
   label: string;
   value: string;
+  serviceId: string;
 };
 
 type ProviderOption = {
   id: string;
   name: string;
-  service: string;
+  businessName?: string;
+  primaryService: string;
   rating: string;
   reviews: string;
-  distance: string;
-  skills: string[];
-  availability: string;
+  serviceArea: string;
+  description: string;
 };
 
 type BookingForm = {
@@ -40,61 +47,19 @@ type Props = {
 
 const steps = ["Service", "Location", "Provider", "Details"];
 
-const services: ServiceOption[] = [
-  { icon: "🚚", label: "Removal Service", value: "removal" },
-  { icon: "🔧", label: "Plumbing", value: "plumbing" },
-  { icon: "🌱", label: "Gardening", value: "gardening" },
-  { icon: "✨", label: "Cleaning", value: "cleaning" },
-  { icon: "🎨", label: "Painting", value: "painting" },
-];
-
-const providers: ProviderOption[] = [
-  {
-    id: "john-smith",
-    name: "John Smith",
-    service: "removal",
-    rating: "4.9",
-    reviews: "127 reviews",
-    distance: "2.3 miles away",
-    skills: ["Residential Wiring", "Panel Upgrades", "Emergency Repairs"],
-    availability: "Available Today",
-  },
-  {
-    id: "sarah-johnson",
-    name: "Sarah Johnson",
-    service: "plumbing",
-    rating: "4.8",
-    reviews: "89 reviews",
-    distance: "3.5 miles away",
-    skills: ["Smart Home Installation", "LED Lighting", "Outlet Installation"],
-    availability: "Available Tomorrow",
-  },
-  {
-    id: "mike-rodriguez",
-    name: "Mike Rodriguez",
-    service: "cleaning",
-    rating: "4.7",
-    reviews: "156 reviews",
-    distance: "5.1 miles away",
-    skills: ["Commercial Electric", "Generator Installation", "Troubleshooting"],
-    availability: "Available This Week",
-  },
-];
-
-// Service slug mapping for API
-const serviceSlugMap: Record<string, string> = {
-  removal: "removal",
-  plumbing: "plumbing",
-  gardening: "gardening",
-  cleaning: "cleaning",
-  painting: "painting",
+const serviceIcons: Record<string, string> = {
+  removal: "🚚",
+  plumbing: "🔧",
+  gardening: "🌱",
+  cleaning: "✨",
+  painting: "🎨",
 };
 
 const initialForm: BookingForm = {
   service: "",
   city: "",
   address: "",
-  providerId: providers[0].id,
+  providerId: "",
   date: "",
   time: "",
   description: "",
@@ -103,18 +68,134 @@ const initialForm: BookingForm = {
   email: "",
 };
 
+function providerDisplayName(provider: ProviderProfile) {
+  const full = `${provider.firstName} ${provider.lastName}`.trim();
+  return provider.businessName?.trim() || full || "Provider";
+}
+
+function mapProvider(profile: ProviderProfile): ProviderOption {
+  const rating =
+    profile.averageRating != null ? profile.averageRating.toFixed(1) : "—";
+  const reviewCount = profile.totalReviews ?? 0;
+
+  return {
+    id: profile.id,
+    name: providerDisplayName(profile),
+    businessName: profile.businessName,
+    primaryService: profile.primaryService,
+    rating,
+    reviews:
+      reviewCount === 1 ? "1 review" : `${reviewCount} reviews`,
+    serviceArea: profile.serviceArea || "Service area not listed",
+    description:
+      profile.serviceDescription?.trim() ||
+      `${profile.yearsExperience ?? 0}+ years experience`,
+  };
+}
+
+function filterProvidersForBooking(
+  providers: ProviderProfile[],
+  serviceSlug: string,
+  city: string,
+) {
+  const normalizedCity = city.trim().toLowerCase();
+
+  return providers.filter((provider) => {
+    const matchesService =
+      !serviceSlug ||
+      provider.primaryService?.toLowerCase() === serviceSlug.toLowerCase();
+
+    if (!normalizedCity) return matchesService;
+
+    const area = provider.serviceArea?.trim().toLowerCase() ?? "";
+    const matchesCity =
+      !area ||
+      area.includes(normalizedCity) ||
+      normalizedCity.includes(area);
+
+    return matchesService && matchesCity;
+  });
+}
+
 export default function BookingFlow({ onBackToDashboard }: Props) {
   const [step, setStep] = React.useState(1);
   const [isComplete, setIsComplete] = React.useState(false);
   const [error, setError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [form, setForm] = React.useState(initialForm);
+  const [services, setServices] = React.useState<ServiceOption[]>([]);
+  const [allProviders, setAllProviders] = React.useState<ProviderProfile[]>([]);
+  const [catalogLoading, setCatalogLoading] = React.useState(true);
+  const [catalogError, setCatalogError] = React.useState("");
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const loadCatalog = async () => {
+      try {
+        setCatalogLoading(true);
+        setCatalogError("");
+
+        const [apiServices, apiProviders] = await Promise.all([
+          fetchServices(),
+          fetchProviders(),
+        ]);
+
+        if (cancelled) return;
+
+        setServices(
+          apiServices.map((service) => ({
+            icon: serviceIcons[service.slug] || "🛠️",
+            label: service.title,
+            value: service.slug,
+            serviceId: service.id,
+          })),
+        );
+        setAllProviders(apiProviders);
+      } catch (err) {
+        if (!cancelled) {
+          const message =
+            err instanceof Error ? err.message : "Failed to load services";
+          setCatalogError(message);
+        }
+      } finally {
+        if (!cancelled) {
+          setCatalogLoading(false);
+        }
+      }
+    };
+
+    loadCatalog();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const availableProviders = React.useMemo(
+    () =>
+      filterProvidersForBooking(allProviders, form.service, form.city).map(
+        mapProvider,
+      ),
+    [allProviders, form.service, form.city],
+  );
+
+  const selectedService = services.find(
+    (service) => service.value === form.service,
+  );
 
   const selectedProvider =
-    providers.find((provider) => provider.id === form.providerId) || providers[0];
+    availableProviders.find((provider) => provider.id === form.providerId) ||
+    null;
 
   const update = (key: keyof BookingForm, value: string) => {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((current) => {
+      const next = { ...current, [key]: value };
+      if (key === "service" || key === "city") {
+        next.providerId = "";
+      }
+      return next;
+    });
   };
 
   const goPrevious = () => {
@@ -135,11 +216,17 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
     setError("");
 
     try {
-      // Convert date and time to ISO format
-      const dateStr = form.date; // Format: YYYY-MM-DD
-      const timeStr = form.time; // Format: HH:MM AM/PM
-      
-      // Combine date and time
+      const service = selectedService;
+      if (!service) {
+        throw new Error("Please select a service.");
+      }
+      if (!form.providerId) {
+        throw new Error("Please select a provider.");
+      }
+
+      const dateStr = form.date;
+      const timeStr = form.time;
+
       let dateTime: string;
       if (timeStr) {
         const [time, period] = timeStr.split(" ");
@@ -147,13 +234,16 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
         let hour = parseInt(hours, 10);
         if (period === "PM" && hour !== 12) hour += 12;
         if (period === "AM" && hour === 12) hour = 0;
-        dateTime = new Date(`${dateStr}T${String(hour).padStart(2, "0")}:${minutes}:00`).toISOString();
+        dateTime = new Date(
+          `${dateStr}T${String(hour).padStart(2, "0")}:${minutes}:00`,
+        ).toISOString();
       } else {
         dateTime = new Date(`${dateStr}T08:00:00`).toISOString();
       }
 
       const payload: CreateServiceRequestPayload = {
-        serviceId: serviceSlugMap[form.service] || form.service,
+        serviceId: service.serviceId,
+        providerId: form.providerId,
         city: form.city,
         address: form.address || undefined,
         preferredDate: dateTime,
@@ -162,16 +252,36 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
       };
 
       await createServiceRequest(payload);
-      
+
       setIsComplete(true);
+      setLoading(false);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to create booking";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to create booking";
       setError(errorMessage);
       setLoading(false);
     }
   };
 
   const goNext = () => {
+    if (step === 1 && !form.service) {
+      setError("Please select a service.");
+      return;
+    }
+    if (step === 2 && !form.city) {
+      setError("Please select your city.");
+      return;
+    }
+    if (step === 3) {
+      if (catalogLoading) {
+        setError("Loading providers, please wait.");
+        return;
+      }
+      if (!form.providerId) {
+        setError("Please select a provider.");
+        return;
+      }
+    }
     if (step === 4) {
       if (!isValidRwandanMobile(form.phone)) {
         setError("Enter a valid Rwandan phone number (e.g. 0781234567).");
@@ -206,28 +316,38 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
 
           {!isComplete ? <Progress step={step} /> : null}
 
-          {isComplete ? (
+          {catalogError && !isComplete ? (
+            <p className="mb-4 text-sm text-amber-700">{catalogError}</p>
+          ) : null}
+
+          {isComplete && selectedProvider ? (
             <BookingComplete
               form={form}
               onDashboard={onBackToDashboard}
               provider={selectedProvider}
+              serviceLabel={selectedService?.label || "Service"}
             />
-          ) : step === 1 ? (
+          ) : !isComplete && step === 1 ? (
             <ServiceStep
               selected={form.service}
+              services={services}
+              loading={catalogLoading}
               onSelect={(value) => update("service", value)}
             />
-          ) : step === 2 ? (
+          ) : !isComplete && step === 2 ? (
             <LocationStep form={form} update={update} />
-          ) : step === 3 ? (
+          ) : !isComplete && step === 3 ? (
             <ProviderStep
-              providers={providers}
+              providers={availableProviders}
+              loading={catalogLoading}
               selectedId={form.providerId}
+              serviceLabel={selectedService?.label}
+              city={form.city}
               onSelect={(value) => update("providerId", value)}
             />
-          ) : (
+          ) : !isComplete ? (
             <DetailsStep form={form} update={update} />
-          )}
+          ) : null}
 
           {!isComplete ? (
             <div className="mt-8 flex justify-end">
@@ -237,7 +357,7 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
               <button
                 type="button"
                 onClick={goNext}
-                disabled={loading}
+                disabled={loading || (step === 1 && catalogLoading)}
                 className="inline-flex items-center gap-4 rounded-lg bg-[#ffad7a] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#ff8b47] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span>{loading ? "Processing..." : step === 4 ? "Book Service" : "Continue"}</span>
@@ -277,9 +397,13 @@ function Progress({ step }: { step: number }) {
 function ServiceStep({
   onSelect,
   selected,
+  services,
+  loading,
 }: {
   onSelect: (service: string) => void;
   selected: string;
+  services: ServiceOption[];
+  loading: boolean;
 }) {
   return (
     <Panel>
@@ -290,25 +414,33 @@ function ServiceStep({
         Select the type of service you&apos;re looking for
       </p>
 
-      <div className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-2">
-        {services.map((service) => (
-          <button
-            key={service.value}
-            type="button"
-            onClick={() => onSelect(service.value)}
-            className={`flex h-32 flex-col items-center justify-center rounded-xl border bg-white text-center transition ${
-              selected === service.value
-                ? "border-[#ff5f00] ring-1 ring-[#ff5f00]"
-                : "border-black/10 hover:border-black/20"
-            }`}
-          >
-            <span className="text-3xl">{service.icon}</span>
-            <span className="mt-4 text-lg font-semibold text-black">
-              {service.label}
-            </span>
-          </button>
-        ))}
-      </div>
+      {loading ? (
+        <p className="mt-7 text-sm text-black/60">Loading services...</p>
+      ) : services.length === 0 ? (
+        <p className="mt-7 text-sm text-black/60">
+          No services are available right now. Please try again later.
+        </p>
+      ) : (
+        <div className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {services.map((service) => (
+            <button
+              key={service.serviceId}
+              type="button"
+              onClick={() => onSelect(service.value)}
+              className={`flex h-32 flex-col items-center justify-center rounded-xl border bg-white text-center transition ${
+                selected === service.value
+                  ? "border-[#ff5f00] ring-1 ring-[#ff5f00]"
+                  : "border-black/10 hover:border-black/20"
+              }`}
+            >
+              <span className="text-3xl">{service.icon}</span>
+              <span className="mt-4 text-lg font-semibold text-black">
+                {service.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </Panel>
   );
 }
@@ -338,7 +470,6 @@ function LocationStep({
             className="mt-1 w-full rounded-lg border-0 bg-[#f0f0f2] px-3 py-2.5 text-sm text-black/80 outline-none"
           >
             <option value="">Select your city</option>
-            <option value="San Francisco, CA">San Francisco, CA</option>
             <option value="Nyarugenge">Nyarugenge</option>
             <option value="Gasabo">Gasabo</option>
             <option value="Kicukiro">Kicukiro</option>
@@ -364,54 +495,67 @@ function LocationStep({
 function ProviderStep({
   onSelect,
   providers,
+  loading,
   selectedId,
+  serviceLabel,
+  city,
 }: {
   onSelect: (providerId: string) => void;
   providers: ProviderOption[];
+  loading: boolean;
   selectedId: string;
+  serviceLabel?: string;
+  city: string;
 }) {
   return (
     <Panel>
       <h1 className="text-2xl font-semibold text-black">Choose a Provider</h1>
       <p className="mt-2 text-sm text-black/60">
-        Select from vetted professionals in your area
+        {serviceLabel
+          ? `Providers offering ${serviceLabel.toLowerCase()}${city ? ` in ${city}` : ""}`
+          : "Select from registered professionals in your area"}
       </p>
 
-      <div className="mt-7 space-y-4">
-        {providers.map((provider) => (
-          <button
-            key={provider.id}
-            type="button"
-            onClick={() => onSelect(provider.id)}
-            className={`flex w-full items-start gap-5 rounded-xl border bg-white p-5 text-left transition ${
-              selectedId === provider.id
-                ? "border-[#ff5f00] ring-1 ring-[#ff5f00]"
-                : "border-black/10 hover:border-black/20"
-            }`}
-          >
-            <ProviderAvatar name={provider.name} />
-            <div>
-              <h2 className="text-lg font-semibold text-black">{provider.name}</h2>
-              <p className="mt-4 text-sm text-black">
-                <span className="text-[#f6b500]">★</span> {provider.rating} (
-                {provider.reviews}){" "}
-                <span className="ml-3 text-black/60">⌖ {provider.distance}</span>
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {provider.skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="rounded-md bg-[#eef0f4] px-2 py-1 text-xs text-black"
-                  >
-                    {skill}
+      {loading ? (
+        <p className="mt-7 text-sm text-black/60">Loading providers...</p>
+      ) : providers.length === 0 ? (
+        <p className="mt-7 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          No providers match this service and location yet. Try another city or
+          service, or check back after more providers register.
+        </p>
+      ) : (
+        <div className="mt-7 space-y-4">
+          {providers.map((provider) => (
+            <button
+              key={provider.id}
+              type="button"
+              onClick={() => onSelect(provider.id)}
+              className={`flex w-full items-start gap-5 rounded-xl border bg-white p-5 text-left transition ${
+                selectedId === provider.id
+                  ? "border-[#ff5f00] ring-1 ring-[#ff5f00]"
+                  : "border-black/10 hover:border-black/20"
+              }`}
+            >
+              <ProviderAvatar name={provider.name} />
+              <div>
+                <h2 className="text-lg font-semibold text-black">{provider.name}</h2>
+                {provider.businessName &&
+                provider.businessName !== provider.name ? (
+                  <p className="text-sm text-black/60">{provider.businessName}</p>
+                ) : null}
+                <p className="mt-4 text-sm text-black">
+                  <span className="text-[#f6b500]">★</span> {provider.rating} (
+                  {provider.reviews}){" "}
+                  <span className="ml-3 text-black/60">
+                    ⌖ {provider.serviceArea}
                   </span>
-                ))}
+                </p>
+                <p className="mt-4 text-sm text-black/70">{provider.description}</p>
               </div>
-              <p className="mt-4 text-sm text-[#00a63d]">◷ {provider.availability}</p>
-            </div>
-          </button>
-        ))}
-      </div>
+            </button>
+          ))}
+        </div>
+      )}
     </Panel>
   );
 }
@@ -502,14 +646,13 @@ function BookingComplete({
   form,
   onDashboard,
   provider,
+  serviceLabel,
 }: {
   form: BookingForm;
   onDashboard: () => void;
   provider: ProviderOption;
+  serviceLabel: string;
 }) {
-  const selectedService =
-    services.find((service) => service.value === form.service)?.label || "Service";
-
   return (
     <Panel className="py-10 text-center">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
@@ -521,7 +664,7 @@ function BookingComplete({
         Booking Request Sent!
       </h1>
       <p className="mt-2 text-sm text-black/60">
-        Your booking request has been sent to available providers
+        Your request has been sent to {provider.name}
       </p>
 
       <div className="mx-auto mt-7 max-w-[520px] rounded-xl border border-black/10 bg-white p-6 text-left">
@@ -530,26 +673,26 @@ function BookingComplete({
           <ProviderAvatar name={provider.name} />
           <div>
             <p className="font-semibold text-black">{provider.name}</p>
-            <p className="text-sm text-black/60">{selectedService.toLowerCase()}</p>
+            <p className="text-sm text-black/60">{serviceLabel.toLowerCase()}</p>
           </div>
         </div>
 
         <dl className="mt-5 space-y-3 text-sm">
-          <SummaryRow label="Date:" value={form.date || "February 2nd, 2026"} />
-          <SummaryRow label="Time:" value={form.time || "10:00 AM"} />
+          <SummaryRow label="Date:" value={form.date} />
+          <SummaryRow label="Time:" value={form.time} />
           <SummaryRow
             label="Location:"
-            value={form.city || form.address || "San Francisco, CA"}
+            value={[form.city, form.address].filter(Boolean).join(", ")}
           />
-          <SummaryRow label="Contact:" value={form.phone || "0781234567"} />
+          <SummaryRow label="Contact:" value={form.phone} />
         </dl>
       </div>
 
       <div className="mt-7 rounded-lg border border-[#99c2ff] bg-[#e8f1ff] p-4 text-left text-sm text-[#1242c9]">
         <p className="font-semibold">What happens next?</p>
         <ul className="mt-2 list-disc space-y-1 pl-4">
-          <li>Your request has been sent to available providers</li>
-          <li>Providers will review your request and submit quotes</li>
+          <li>{provider.name} will review your service request</li>
+          <li>They may submit a quote for you to review</li>
           <li>You&apos;ll receive quotes in your dashboard for review</li>
           <li>Once you approve, payment will be held in escrow</li>
           <li>Payment is released after work is completed</li>

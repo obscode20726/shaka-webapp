@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, fetchServiceRequests } from "@/lib/api";
 import type {
   Booking,
   HomeownerProfile,
@@ -17,6 +17,11 @@ const initialStats: HomeownerStats = {
   totalSpent: 0,
 };
 
+function normalizeRequestStatus(status: string) {
+  const normalized = status.toLowerCase().replace(/_/g, "-");
+  return normalized === "cancelled" ? "canceled" : normalized;
+}
+
 export function useHomeownerDashboardData() {
   const [profile, setProfile] = React.useState<HomeownerProfile | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -31,7 +36,6 @@ export function useHomeownerDashboardData() {
     const fetchProfile = async () => {
       try {
         const userProfile = await apiRequest("/users/me");
-        console.log("✅ Homeowner Profile:", userProfile);
         setProfile(userProfile.homeownerProfile);
       } catch (err: unknown) {
         const message =
@@ -63,95 +67,37 @@ export function useHomeownerDashboardData() {
       try {
         setStatsLoading(true);
 
-        console.log("📍 Fetching /service-requests...");
         let serviceRequests: ServiceRequest[] = [];
         try {
-          const response = await apiRequest("/service-requests");
-          console.log("✅ /service-requests response:", response);
-          console.log(
-            "   Type:",
-            Array.isArray(response) ? "Array" : typeof response,
-          );
-          console.log(
-            "   Length:",
-            Array.isArray(response) ? response.length : "N/A",
-          );
-
-          if (Array.isArray(response)) {
-            serviceRequests = response;
-          }
+          serviceRequests = (await fetchServiceRequests()) as ServiceRequest[];
         } catch (err) {
-          console.error("❌ /service-requests error:", err);
+          console.error("Unable to load service requests:", err);
         }
 
-        console.log("📋 Service Request Status Breakdown:");
-        serviceRequests.forEach((request) => {
-          console.log(
-            `   - ${request.service?.title || "Service"}: status = "${request.status}"`,
-          );
-        });
-
         const upcomingRequests = serviceRequests.filter(
-          (request) => request.status === "pending",
+          (request) => normalizeRequestStatus(request.status) === "pending",
         );
-        const inProgressRequests = serviceRequests.filter(
-          (request) =>
-            request.status === "accepted" || request.status === "in-progress",
-        );
+        const inProgressRequests = serviceRequests.filter((request) => {
+          const status = normalizeRequestStatus(request.status);
+          return status === "accepted" || status === "in-progress";
+        });
         const completedRequests = serviceRequests.filter(
-          (request) => request.status === "completed",
+          (request) => normalizeRequestStatus(request.status) === "completed",
         );
-        const canceledRequests = serviceRequests.filter(
-          (request) => request.status === "canceled",
-        );
-
-        console.log("📊 Pending (Awaiting Quote):", upcomingRequests.length);
-        console.log("📊 In Progress:", inProgressRequests.length);
-        console.log("📊 Completed:", completedRequests.length);
-        console.log("📊 Canceled:", canceledRequests.length);
 
         let totalSpent = 0;
 
-        console.log("📍 Fetching /bookings...");
         try {
           const response = await apiRequest("/bookings");
-          console.log("✅ /bookings response:", response);
-          console.log(
-            "   Type:",
-            Array.isArray(response) ? "Array" : typeof response,
-          );
-          console.log(
-            "   Length:",
-            Array.isArray(response) ? response.length : "N/A",
-          );
-
           if (Array.isArray(response)) {
-            const typedBookings = response as Booking[];
-            const now = new Date();
-            const upcomingCount = typedBookings.filter((booking) => {
-              const scheduledDate = new Date(booking.scheduledAt);
-              return scheduledDate > now;
-            }).length;
-            setBookings(typedBookings);
-            console.log("📊 Upcoming Bookings:", upcomingCount);
+            setBookings(response as Booking[]);
           }
         } catch (err) {
-          console.error("❌ /bookings error:", err);
+          console.error("Unable to load bookings:", err);
         }
 
-        console.log("📍 Fetching /payments...");
         try {
           const response = await apiRequest("/payments");
-          console.log("✅ /payments response:", response);
-          console.log(
-            "   Type:",
-            Array.isArray(response) ? "Array" : typeof response,
-          );
-          console.log(
-            "   Length:",
-            Array.isArray(response) ? response.length : "N/A",
-          );
-
           if (Array.isArray(response)) {
             const typedPayments = response as Payment[];
             totalSpent = typedPayments.reduce((sum, payment) => {
@@ -161,17 +107,10 @@ export function useHomeownerDashboardData() {
               return sum;
             }, 0);
             setPayments(typedPayments);
-            console.log("📊 Total Spent:", totalSpent);
           }
         } catch (err) {
-          console.error("❌ /payments error:", err);
+          console.error("Unable to load payments:", err);
         }
-
-        console.log("📊 Dashboard Stats Summary:");
-        console.log("   Upcoming:", upcomingRequests.length);
-        console.log("   In Progress:", inProgressRequests.length);
-        console.log("   Completed:", completedRequests.length);
-        console.log("   Total Spent:", totalSpent);
 
         setStats({
           upcoming: upcomingRequests.length,
@@ -181,7 +120,7 @@ export function useHomeownerDashboardData() {
         });
         setRequests(serviceRequests);
       } catch (err: unknown) {
-        console.error("❌ Overall error fetching dashboard data:", err);
+        console.error("Error fetching homeowner dashboard data:", err);
       } finally {
         setStatsLoading(false);
       }

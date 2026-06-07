@@ -1,7 +1,20 @@
 "use client";
 
 import React from "react";
-import { apiRequest } from "@/lib/api";
+import {
+  apiRequest,
+  fetchProviderDashboardMetrics,
+  fetchServiceRequestsForProvider,
+  unwrapArrayResponse,
+} from "@/lib/api";
+import {
+  isActiveRequest,
+  isCompletedRequest,
+  isPendingRequest,
+  isProviderVisibleRequest,
+  normalizeRequestStatus,
+  parseHomeownerName,
+} from "./formatters";
 import type {
   Booking,
   DashboardStats,
@@ -26,9 +39,6 @@ export function useProviderDashboardData() {
   const [profileError, setProfileError] = React.useState<string | null>(null);
   const [stats, setStats] = React.useState<DashboardStats>(initialStats);
   const [requests, setRequests] = React.useState<ServiceRequest[]>([]);
-  const [acceptedRequests, setAcceptedRequests] = React.useState<
-    ServiceRequest[]
-  >([]);
   const [bookings, setBookings] = React.useState<Booking[]>([]);
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [recentActivity, setRecentActivity] = React.useState<
@@ -40,7 +50,6 @@ export function useProviderDashboardData() {
     const fetchProfile = async () => {
       try {
         const userProfile = await apiRequest("/users/me");
-        console.log("✅ Provider Profile:", userProfile);
         setProfile(userProfile.providerProfile);
       } catch (err: unknown) {
         const message =
@@ -73,61 +82,31 @@ export function useProviderDashboardData() {
         setStatsLoading(true);
 
         let serviceRequests: ServiceRequest[] = [];
-        console.log("📍 Fetching /service-requests...");
         try {
-          const response = await apiRequest("/service-requests");
-          console.log("✅ /service-requests response:", response);
-          console.log(
-            "   Type:",
-            Array.isArray(response) ? "Array" : typeof response,
-          );
-          console.log(
-            "   Length:",
-            Array.isArray(response) ? response.length : "N/A",
-          );
-          if (Array.isArray(response)) serviceRequests = response;
+          serviceRequests =
+            (await fetchServiceRequestsForProvider()) as ServiceRequest[];
         } catch (err) {
-          console.error("❌ /service-requests error:", err);
+          console.error("Unable to load service requests:", err);
         }
 
-        console.log("📋 Service Request Status Breakdown:");
-        serviceRequests.forEach((request) => {
-          console.log(
-            `   - ${request.service?.title || "Service"}: status = "${request.status}"`,
-          );
-        });
-
-        const newRequests = serviceRequests.filter(
-          (request) => request.status === "pending",
-        );
-        const acceptedRequests = serviceRequests.filter(
-          (request) =>
-            request.status === "accepted" || request.status === "in-progress",
-        );
-        const completedRequests = serviceRequests.filter(
-          (request) => request.status === "completed",
+        serviceRequests = serviceRequests.filter((request) =>
+          isProviderVisibleRequest(request.status),
         );
 
-        console.log("📊 New Requests (Pending):", newRequests.length);
-        console.log("📊 Accepted/In Progress:", acceptedRequests.length);
-        console.log("📊 Completed:", completedRequests.length);
+        const pendingRequests = serviceRequests.filter((request) =>
+          isPendingRequest(request.status),
+        );
+        const completedRequests = serviceRequests.filter((request) =>
+          isCompletedRequest(request.status),
+        );
 
         let upcomingJobs = 0;
         let jobsCompleted = 0;
-        console.log("📍 Fetching /bookings...");
+
         try {
           const response = await apiRequest("/bookings");
-          console.log("✅ /bookings response:", response);
-          console.log(
-            "   Type:",
-            Array.isArray(response) ? "Array" : typeof response,
-          );
-          console.log(
-            "   Length:",
-            Array.isArray(response) ? response.length : "N/A",
-          );
-          if (Array.isArray(response)) {
-            const typedBookings = response as Booking[];
+          const typedBookings = unwrapArrayResponse<Booking>(response);
+          if (typedBookings.length > 0) {
             const now = new Date();
             upcomingJobs = typedBookings.filter(
               (booking) => new Date(booking.scheduledAt) > now,
@@ -136,28 +115,17 @@ export function useProviderDashboardData() {
               (booking) => booking.escrowStatus === "released",
             ).length;
             setBookings(typedBookings);
-            console.log("📊 Upcoming Jobs (future dates):", upcomingJobs);
-            console.log("📊 Completed Jobs (released escrow):", jobsCompleted);
           }
         } catch (err) {
-          console.error("❌ /bookings error:", err);
+          console.error("Unable to load bookings:", err);
         }
 
         let monthlyEarnings = 0;
-        console.log("📍 Fetching /payments...");
+
         try {
           const response = await apiRequest("/payments");
-          console.log("✅ /payments response:", response);
-          console.log(
-            "   Type:",
-            Array.isArray(response) ? "Array" : typeof response,
-          );
-          console.log(
-            "   Length:",
-            Array.isArray(response) ? response.length : "N/A",
-          );
-          if (Array.isArray(response)) {
-            const typedPayments = response as Payment[];
+          const typedPayments = unwrapArrayResponse<Payment>(response);
+          if (typedPayments.length > 0) {
             const now = new Date();
             monthlyEarnings = typedPayments.reduce((sum, payment) => {
               if (payment.status !== "completed" || !payment.createdAt) {
@@ -170,60 +138,46 @@ export function useProviderDashboardData() {
               return isCurrentMonth ? sum + (payment.amount || 0) : sum;
             }, 0);
             setPayments(typedPayments);
-            console.log("📊 Monthly Earnings:", monthlyEarnings);
           }
         } catch (err) {
-          console.error("❌ /payments error:", err);
+          console.error("Unable to load payments:", err);
         }
 
-        let averageRating = 0;
-        try {
-          const userProfile = await apiRequest("/users/me");
-          averageRating = userProfile.providerProfile?.averageRating || 0;
-          console.log("📊 Average Rating:", averageRating);
-        } catch (err) {
-          console.error("❌ Error getting rating:", err);
-        }
-
-        const requestsWithQuotes = serviceRequests.filter(
-          (request) =>
-            request.status !== "pending" && request.status !== "canceled",
-        ).length;
+        const requestsWithQuotes = serviceRequests.filter((request) => {
+          const status = normalizeRequestStatus(request.status);
+          return status !== "pending" && status !== "canceled";
+        }).length;
         const responseRate =
           serviceRequests.length > 0
             ? Math.round((requestsWithQuotes / serviceRequests.length) * 100)
             : 0;
 
-        console.log("📊 Calculated Stats:");
-        console.log("   Total Requests:", serviceRequests.length);
-        console.log("   Requests with Quotes:", requestsWithQuotes);
-        console.log("   Response Rate:", `${responseRate}%`);
-        console.log("   New Requests:", newRequests.length);
-        console.log("   Upcoming Jobs:", upcomingJobs);
-        console.log("   Jobs Completed:", jobsCompleted);
-        console.log("   Monthly Earnings:", monthlyEarnings);
-        console.log("   Rating:", averageRating);
+        const metrics = await fetchProviderDashboardMetrics();
+        const providerStats = metrics?.provider_stats;
 
         setStats({
-          newRequests: newRequests.length,
-          upcomingJobs,
-          monthlyEarnings,
-          rating: averageRating,
-          jobsCompleted,
+          newRequests:
+            providerStats?.new_requests_count ?? pendingRequests.length,
+          upcomingJobs:
+            providerStats?.upcoming_jobs_count ?? upcomingJobs,
+          monthlyEarnings:
+            providerStats?.revenue_this_month ?? monthlyEarnings,
+          rating: providerStats?.average_rating ?? 0,
+          jobsCompleted:
+            providerStats?.total_bookings ?? jobsCompleted,
           responseRate: `${responseRate}%`,
         });
-        setRequests(newRequests);
-        setAcceptedRequests(acceptedRequests);
+        setRequests(serviceRequests);
         setRecentActivity(
           completedRequests.slice(0, 3).map((request) => ({
-            customer: "Customer",
+            customer: parseHomeownerName(request.homeowner),
             service: request.service?.title || "Service",
             amount: "$0",
-            status: "completed",
+            status: "completed" as const,
           })),
         );
-      } catch (err) {
-        console.error("❌ Overall error fetching dashboard data:", err);
+      } catch (err: unknown) {
+        console.error("Error fetching provider dashboard data:", err);
       } finally {
         setStatsLoading(false);
       }
@@ -232,11 +186,20 @@ export function useProviderDashboardData() {
     fetchDashboardData();
   }, []);
 
+  const acceptedRequests = React.useMemo(() => {
+    return requests.filter((request) => isActiveRequest(request.status));
+  }, [requests]);
+
+  const pendingRequests = React.useMemo(() => {
+    return requests.filter((request) => isPendingRequest(request.status));
+  }, [requests]);
+
   return {
     acceptedRequests,
     bookings,
     loading,
     payments,
+    pendingRequests,
     profile,
     profileError,
     recentActivity,

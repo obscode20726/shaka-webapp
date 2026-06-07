@@ -41,6 +41,7 @@ export default function ProviderDashboard() {
     bookings,
     loading,
     payments,
+    pendingRequests,
     profile,
     profileError,
     recentActivity,
@@ -87,7 +88,7 @@ export default function ProviderDashboard() {
     },
     {
       title: "Rating",
-      value: `${stats.rating.toFixed(1)} ⭐`,
+      value: `${Number(profile?.averageRating ?? stats.rating ?? 0).toFixed(1)} ⭐`,
       icon: "↗",
       iconClass: "text-[#9333ea]",
     },
@@ -112,6 +113,7 @@ export default function ProviderDashboard() {
 
           {activeTab === "Overview" ? (
             <OverviewTab
+              profileRating={profile?.averageRating}
               recentActivity={recentActivity}
               stats={stats}
               statsLoading={statsLoading}
@@ -121,7 +123,7 @@ export default function ProviderDashboard() {
           ) : activeTab === "Requests" ? (
             <RequestsTab
               acceptedRequests={acceptedRequests}
-              requests={requests}
+              requests={pendingRequests}
               statsLoading={statsLoading}
             />
           ) : activeTab === "Schedule" ? (

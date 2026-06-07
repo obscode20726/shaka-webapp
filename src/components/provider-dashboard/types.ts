@@ -7,6 +7,8 @@ export type TabName =
   | "Profile";
 
 export type ProviderProfile = {
+  id?: string;
+  userId?: string;
   firstName: string;
   lastName: string;
   businessName?: string;
@@ -20,12 +22,23 @@ export type ServiceRequest = {
   status: string;
   description: string;
   preferredDate: string;
+  preferredTime?: string;
   city: string;
-  service: {
+  address?: string;
+  providerId?: string;
+  homeownerId?: string;
+  service?: {
     title: string;
     slug: string;
   };
-  homeownerId: string;
+  priority?: string;
+  homeowner?: {
+    fullName?: string;
+    firstName?: string;
+    lastName?: string;
+    contactPhone?: string;
+    averageRating?: number;
+  };
 };
 
 export type Booking = {

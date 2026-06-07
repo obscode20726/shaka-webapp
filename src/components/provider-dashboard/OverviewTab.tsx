@@ -4,16 +4,19 @@ import StatusPill from "./StatusPill";
 import type { DashboardStats, RecentActivityItem } from "./types";
 
 type Props = {
+  profileRating?: number;
   recentActivity: RecentActivityItem[];
   stats: DashboardStats;
   statsLoading: boolean;
 };
 
 export default function OverviewTab({
+  profileRating,
   recentActivity,
   stats,
   statsLoading,
 }: Props) {
+  const rating = Number(profileRating ?? stats.rating ?? 0);
   return (
     <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
       <section className="rounded-2xl border border-black/10 bg-white p-4 sm:p-5">
@@ -61,7 +64,7 @@ export default function OverviewTab({
             {stats.responseRate}
           </Metric>
           <Metric label="Customer Satisfaction" loading={statsLoading}>
-          {stats.rating.toFixed(1)} ⭐
+          {rating.toFixed(1)} ⭐
           </Metric>
           <Metric
             label="Total Earnings"

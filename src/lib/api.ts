@@ -135,6 +135,39 @@ export const adminLogin = async (credentials: {
   });
 };
 
+export interface Service {
+  id: string;
+  slug: string;
+  title: string;
+  description?: string;
+  iconPath?: string;
+}
+
+export interface ProviderProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  businessName?: string;
+  primaryService: string;
+  yearsExperience?: number;
+  serviceArea?: string;
+  serviceDescription?: string;
+  averageRating?: number;
+  totalReviews?: number;
+}
+
+export const fetchServices = async (): Promise<Service[]> => {
+  const response = await apiRequest<Service[]>("/services", { auth: false });
+  return Array.isArray(response) ? response : [];
+};
+
+export const fetchProviders = async (): Promise<ProviderProfile[]> => {
+  const response = await apiRequest<ProviderProfile[]>("/providers", {
+    auth: false,
+  });
+  return Array.isArray(response) ? response : [];
+};
+
 /**
  * Create a service request (booking)
  * @param request - Service request data from booking form
@@ -142,6 +175,7 @@ export const adminLogin = async (credentials: {
  */
 export interface CreateServiceRequestPayload {
   serviceId: string;
+  providerId?: string;
   city: string;
   address?: string;
   preferredDate: string;
@@ -153,6 +187,7 @@ export interface ServiceRequestResponse {
   id: string;
   homeownerId: string;
   serviceId: string;
+  providerId?: string;
   city: string;
   address?: string;
   preferredDate: string;
@@ -166,8 +201,289 @@ export interface ServiceRequestResponse {
 export const createServiceRequest = async (
   payload: CreateServiceRequestPayload,
 ): Promise<ServiceRequestResponse> => {
-  return apiRequest("/api/service-requests", {
+  return apiRequest("/service-requests", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+};
+
+export interface ServiceRequestHomeowner {
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  contactPhone?: string;
+  averageRating?: number;
+}
+
+export interface ServiceRequestProviderRef {
+  id?: string;
+  firstName?: string;
+  lastName?: string;
+  businessName?: string;
+}
+
+export interface ServiceRequestItem {
+  id: string;
+  status: string;
+  description: string;
+  preferredDate: string;
+  preferredTime?: string;
+  city: string;
+  address?: string;
+  providerId?: string;
+  homeownerId?: string;
+  priority?: string;
+  service?: {
+    title: string;
+    slug: string;
+  };
+  homeowner?: ServiceRequestHomeowner;
+  provider?: ServiceRequestProviderRef;
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" ? value : undefined;
+}
+
+function readId(value: unknown) {
+  if (typeof value === "string" && value.length > 0) return value;
+  if (typeof value === "number") return String(value);
+  return undefined;
+}
+
+/** Unwrap list responses whether the API returns a bare array or `{ data: [...] }`. */
+export function unwrapArrayResponse<T>(response: unknown): T[] {
+  if (Array.isArray(response)) return response as T[];
+
+  if (response && typeof response === "object") {
+    const record = response as Record<string, unknown>;
+    const keys = [
+      "data",
+      "items",
+      "results",
+      "bookings",
+      "payments",
+      "serviceRequests",
+      "service_requests",
+      "requests",
+    ];
+
+    for (const key of keys) {
+      const value = record[key];
+      if (Array.isArray(value)) return value as T[];
+    }
+  }
+
+  return [];
+}
+
+function mapServiceRequestFromApi(raw: unknown): ServiceRequestItem | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const record = raw as Record<string, unknown>;
+  const id = readId(record.id) ?? readId(record._id);
+  if (!id) return null;
+
+  const serviceRaw = record.service;
+  const service =
+    serviceRaw && typeof serviceRaw === "object"
+      ? {
+          title: readString((serviceRaw as Record<string, unknown>).title) || "Service",
+          slug: readString((serviceRaw as Record<string, unknown>).slug) || "",
+        }
+      : undefined;
+
+  const homeownerRaw = record.homeowner ?? record.homeownerProfile;
+  const homeowner =
+    homeownerRaw && typeof homeownerRaw === "object"
+      ? (homeownerRaw as ServiceRequestHomeowner)
+      : undefined;
+
+  const providerRaw = record.provider ?? record.providerProfile;
+  const provider =
+    providerRaw && typeof providerRaw === "object"
+      ? (providerRaw as ServiceRequestProviderRef)
+      : undefined;
+
+  const providerId =
+    readString(record.providerId) ??
+    readString(record.provider_id) ??
+    provider?.id;
+
+  return {
+    id,
+    status: readString(record.status) || "pending",
+    description: readString(record.description) || "",
+    preferredDate:
+      readString(record.preferredDate) ??
+      readString(record.preferred_date) ??
+      "",
+    preferredTime:
+      readString(record.preferredTime) ?? readString(record.preferred_time),
+    city: readString(record.city) || "",
+    address: readString(record.address),
+    providerId,
+    homeownerId:
+      readString(record.homeownerId) ?? readString(record.homeowner_id),
+    priority: readString(record.priority) ?? "normal",
+    service,
+    homeowner,
+    provider,
+  };
+}
+
+function mapServiceRequestList(items: unknown[]): ServiceRequestItem[] {
+  return items
+    .map(mapServiceRequestFromApi)
+    .filter((item): item is ServiceRequestItem => item !== null);
+}
+
+function unwrapServiceRequests(response: unknown): ServiceRequestItem[] {
+  if (Array.isArray(response)) {
+    return mapServiceRequestList(response);
+  }
+
+  if (response && typeof response === "object") {
+    const record = response as Record<string, unknown>;
+    const keys = [
+      "data",
+      "serviceRequests",
+      "service_requests",
+      "items",
+      "requests",
+      "assignedRequests",
+      "providerServiceRequests",
+      "results",
+    ];
+
+    for (const key of keys) {
+      const value = record[key];
+      if (Array.isArray(value)) {
+        return mapServiceRequestList(value);
+      }
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        const nested = unwrapServiceRequests(value);
+        if (nested.length > 0) return nested;
+      }
+    }
+  }
+
+  return [];
+}
+
+function dedupeServiceRequests(requests: ServiceRequestItem[]) {
+  const seen = new Set<string>();
+  return requests.filter((request) => {
+    if (seen.has(request.id)) return false;
+    seen.add(request.id);
+    return true;
+  });
+}
+
+/**
+ * List service requests for the authenticated user.
+ * Homeowners see their own requests; providers see requests assigned to them.
+ */
+export const fetchServiceRequests = async (): Promise<ServiceRequestItem[]> => {
+  const response = await apiRequest<unknown>("/service-requests");
+  return unwrapServiceRequests(response);
+};
+
+export interface ProviderDashboardMetrics {
+  provider_stats?: {
+    new_requests_count?: number;
+    upcoming_jobs_count?: number;
+    revenue_this_month?: number;
+    average_rating?: number;
+    total_reviews?: number;
+    total_bookings?: number;
+  };
+}
+
+export const fetchProviderDashboardMetrics =
+  async (): Promise<ProviderDashboardMetrics | null> => {
+    try {
+      return await apiRequest<ProviderDashboardMetrics>(
+        "/v1/provider/dashboard/metrics",
+      );
+    } catch {
+      return null;
+    }
+  };
+
+function resolveProviderMatchIds(userProfile: {
+  id?: string;
+  providerProfile?: { id?: string; userId?: string };
+}) {
+  return new Set(
+    [
+      userProfile.providerProfile?.id,
+      userProfile.providerProfile?.userId,
+      userProfile.id,
+    ].filter((value): value is string => Boolean(value)),
+  );
+}
+
+function preferProviderAssignedRequests(
+  requests: ServiceRequestItem[],
+  matchIds: Set<string>,
+) {
+  if (requests.length === 0 || matchIds.size === 0) return requests;
+
+  const assigned = requests.filter((request) => {
+    const assignedId = request.providerId ?? request.provider?.id;
+    return assignedId ? matchIds.has(assignedId) : false;
+  });
+  if (assigned.length > 0) return assigned;
+
+  const unassigned = requests.filter(
+    (request) => !(request.providerId ?? request.provider?.id),
+  );
+  if (unassigned.length > 0) return unassigned;
+
+  return requests;
+}
+
+/**
+ * Service requests for the provider dashboard — same endpoint as homeowners,
+ * with provider ID resolution and fallbacks when the default list is empty.
+ */
+export const fetchServiceRequestsForProvider = async (): Promise<
+  ServiceRequestItem[]
+> => {
+  const userProfile = await apiRequest<{
+    id?: string;
+    providerProfile?: { id?: string; userId?: string };
+  }>("/users/me");
+
+  const profileId = userProfile.providerProfile?.id;
+  const matchIds = resolveProviderMatchIds(userProfile);
+  const collected: ServiceRequestItem[] = [];
+
+  try {
+    collected.push(...(await fetchServiceRequests()));
+  } catch {
+    // Fall through to alternate endpoints.
+  }
+
+  if (profileId) {
+    const fallbacks = [
+      `/service-requests?providerId=${encodeURIComponent(profileId)}`,
+      `/providers/${encodeURIComponent(profileId)}/service-requests`,
+    ];
+
+    for (const endpoint of fallbacks) {
+      try {
+        const response = await apiRequest<unknown>(endpoint);
+        collected.push(...unwrapServiceRequests(response));
+      } catch {
+        // Try the next fallback shape.
+      }
+    }
+  }
+
+  return preferProviderAssignedRequests(
+    dedupeServiceRequests(collected),
+    matchIds,
+  );
 };

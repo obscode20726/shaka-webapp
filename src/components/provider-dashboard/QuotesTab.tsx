@@ -1,3 +1,4 @@
+import { parseHomeownerName } from "./formatters";
 import type { ServiceRequest } from "./types";
 
 type Props = {
@@ -22,7 +23,7 @@ export default function QuotesTab({ requests, statsLoading }: Props) {
           <p className="py-8 text-center text-black/60">Loading requests...</p>
         ) : requests.length === 0 ? (
           <p className="py-8 text-center text-black/60">
-            No pending requests at the moment
+            No service requests yet.
           </p>
         ) : (
           requests.map((request) => (
@@ -41,11 +42,15 @@ export default function QuotesTab({ requests, statsLoading }: Props) {
                     </span>
                   </div>
                   <p className="mt-2 text-lg text-black/70">
+                    Customer: {parseHomeownerName(request.homeowner)}
+                  </p>
+                  <p className="text-lg text-black/70">
                     Location: {request.city}
                   </p>
                   <p className="text-lg text-black/70">
                     Preferred Date:{" "}
                     {new Date(request.preferredDate).toLocaleDateString()}
+                    {request.preferredTime ? ` • ${request.preferredTime}` : ""}
                   </p>
                 </div>
 
