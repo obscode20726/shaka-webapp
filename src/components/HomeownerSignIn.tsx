@@ -183,29 +183,6 @@ export default function HomeownerSignIn() {
               {loading ? "Signing in..." : "Sign In"}
             </button>
 
-            <div className="my-5 flex items-center gap-3">
-              <div className="h-px flex-1 bg-black/10" />
-              <span className="text-xs text-black/50">Or continue with</span>
-              <div className="h-px flex-1 bg-black/10" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-medium text-black/80 hover:bg-black/[.02]"
-              >
-                <span className="text-base">G</span>
-                Google
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-medium text-black/80 hover:bg-black/[.02]"
-              >
-                <span className="text-base"></span>
-                Apple
-              </button>
-            </div>
-
             <p className="pt-3 text-center text-sm text-black/60">
               Don&apos;t have an account?{" "}
               <Link
