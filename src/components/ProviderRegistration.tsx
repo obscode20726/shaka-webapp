@@ -42,7 +42,7 @@ export default function ProviderRegistration() {
     phone2: "",
     primaryService: "",
     yearsExperience: "",
-    serviceArea: "San Francisco, CA",
+    serviceArea: "",
     serviceDescription: "",
     identificationNumber: "",
     consentBackground: false,
@@ -109,26 +109,12 @@ export default function ProviderRegistration() {
   };
 
   const handleProviderSignup = async () => {
-    if (!isValidRwandanMobile(form.phone)) {
-      setError("Enter a valid Rwandan phone number (e.g. 0781234567).");
+    if (!validateStep1()) {
       setStep(1);
       return;
     }
 
-    if (!isValidEmail(form.email)) {
-      setError("Enter a valid email address.");
-      setStep(1);
-      return;
-    }
-
-    if (!form.password || form.password !== form.confirmPassword) {
-      setError("Passwords are required and must match.");
-      setStep(1);
-      return;
-    }
-
-    if (!form.firstName || !form.lastName || !form.primaryService) {
-      setError("First name, last name, and primary service are required.");
+    if (!validateStep2()) {
       setStep(2);
       return;
     }
@@ -230,6 +216,56 @@ export default function ProviderRegistration() {
   const goBack = () => {
     if (step === 1) return;
     setStep((s) => s - 1);
+  };
+
+  const validateStep1 = () => {
+    if (!isValidEmail(form.email)) {
+      setError("Enter a valid email address.");
+      return false;
+    }
+
+    if (!isValidRwandanMobile(form.phone)) {
+      setError("Enter a valid Rwandan phone number (e.g. 0781234567).");
+      return false;
+    }
+
+    if (!form.password) {
+      setError("Password is required.");
+      return false;
+    }
+
+    if (!form.confirmPassword) {
+      setError("Please confirm your password.");
+      return false;
+    }
+
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords must match.");
+      return false;
+    }
+
+    setError("");
+    return true;
+  };
+
+  const validateStep2 = () => {
+    if (!form.firstName) {
+      setError("First name is required.");
+      return false;
+    }
+
+    if (!form.lastName) {
+      setError("Last name is required.");
+      return false;
+    }
+
+    if (!form.primaryService) {
+      setError("Primary service is required.");
+      return false;
+    }
+
+    setError("");
+    return true;
   };
 
   const goNext = () => {
@@ -397,10 +433,13 @@ export default function ProviderRegistration() {
               </ul>
             </div>
 
+            {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
             <div className="mt-6 flex justify-end">
               <button
                 type="button"
-                onClick={goNext}
+                onClick={() => {
+                  if (validateStep1()) goNext();
+                }}
                 className="inline-flex items-center gap-2 rounded-lg bg-[#ff6a00] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#e05d00]"
               >
                 Continue <span>→</span>
@@ -520,9 +559,10 @@ export default function ProviderRegistration() {
                 </label>
                 <input
                   type="text"
-                  readOnly
+                  placeholder="Enter your service area (e.g., Kigali)"
                   value={form.serviceArea}
-                  className="w-full rounded-lg border border-black/15 bg-black/[.03] px-3 py-2.5 text-sm text-black/70"
+                  onChange={(e) => update("serviceArea", e.target.value)}
+                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
                 />
               </div>
 
@@ -552,10 +592,13 @@ export default function ProviderRegistration() {
               </ul>
             </div>
 
+            {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
             <div className="mt-6 flex justify-end">
               <button
                 type="button"
-                onClick={goNext}
+                onClick={() => {
+                  if (validateStep2()) goNext();
+                }}
                 className="inline-flex items-center gap-2 rounded-lg bg-[#ff6a00] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#e05d00]"
               >
                 Continue <span>→</span>
