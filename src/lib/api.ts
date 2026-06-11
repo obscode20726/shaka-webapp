@@ -476,205 +476,28 @@ export const fetchServiceRequestsForProvider = async (): Promise<
   );
 };
 
-// Admin API functions
+export type ServiceRequestStatus =
+  | "pending"
+  | "accepted"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
 
-export interface AdminSummaryStats {
-  totalUsers: number;
-  activeProviders: number;
-  pendingApprovals: number;
-  activeBookings: number;
-  platformRevenue: number;
-}
+/**
+ * Update a service request's status (e.g. provider accept/decline).
+ * Maps to PATCH /service-requests/{id}/status.
+ */
+export const updateServiceRequestStatus = async (
+  id: string,
+  status: ServiceRequestStatus,
+): Promise<ServiceRequestItem | null> => {
+  const response = await apiRequest<unknown>(
+    `/service-requests/${encodeURIComponent(id)}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    },
+  );
 
-export interface PlatformStats {
-  totalTransactionVolume: number;
-  platformFees: number;
-  averageJobValue: number;
-  completionRate: number;
-  customerSatisfaction: number;
-}
-
-export interface RecentBooking {
-  id: string;
-  service: string;
-  homeowner: string;
-  provider: string;
-  date: string;
-  amount: number;
-  status: "Approved" | "In Progress" | "Completed";
-}
-
-export interface ProviderApproval {
-  id: string;
-  name: string;
-  service: string;
-  phone: string;
-  location: string;
-  yearsExperience: number;
-  appliedDate: string;
-}
-
-export interface AdminCustomer {
-  id: string;
-  name: string;
-  bookings: number;
-}
-
-export interface AdminProvider {
-  id: string;
-  name: string;
-  rating: number;
-  jobs: number;
-}
-
-export interface AdminDispute {
-  id: string;
-  bookingId: string;
-  customer: string;
-  provider: string;
-  reason: string;
-  filedDate: string;
-  status: "Pending Review";
-}
-
-export const fetchAdminSummaryStats = async (): Promise<AdminSummaryStats> => {
-  try {
-    const [users, providers, serviceRequests] = await Promise.all([
-      apiRequest<unknown[]>("/users"),
-      apiRequest<unknown[]>("/providers"),
-      apiRequest<unknown[]>("/service-requests"),
-    ]);
-
-    const totalUsers = Array.isArray(users) ? users.length : 0;
-    const allProviders = Array.isArray(providers) ? providers : [];
-    const activeProviders = allProviders.length;
-    const pendingApprovals = 0; // No approval status in current API
-    const allRequests = Array.isArray(serviceRequests) ? serviceRequests : [];
-    const activeBookings = allRequests.filter((r: any) => 
-      r.status === "in_progress" || r.status === "accepted"
-    ).length;
-    const platformRevenue = 0; // No revenue data in current API
-
-    return {
-      totalUsers,
-      activeProviders,
-      pendingApprovals,
-      activeBookings,
-      platformRevenue,
-    };
-  } catch {
-    return {
-      totalUsers: 0,
-      activeProviders: 0,
-      pendingApprovals: 0,
-      activeBookings: 0,
-      platformRevenue: 0,
-    };
-  }
-};
-
-export const fetchAdminPlatformStats = async (): Promise<PlatformStats> => {
-  try {
-    const serviceRequests = await apiRequest<unknown[]>("/service-requests");
-    const allRequests = Array.isArray(serviceRequests) ? serviceRequests : [];
-    
-    const totalTransactionVolume = 0; // No payment data in current API
-    const platformFees = 0; // No fee data in current API
-    const averageJobValue = 0; // No amount data in service requests
-    const completionRate = allRequests.length > 0 
-      ? (allRequests.filter((r: any) => r.status === "completed").length / allRequests.length) * 100 
-      : 0;
-    const customerSatisfaction = 4.5; // Default value, no review data in current API
-
-    return {
-      totalTransactionVolume,
-      platformFees,
-      averageJobValue,
-      completionRate,
-      customerSatisfaction,
-    };
-  } catch {
-    return {
-      totalTransactionVolume: 0,
-      platformFees: 0,
-      averageJobValue: 0,
-      completionRate: 0,
-      customerSatisfaction: 0,
-    };
-  }
-};
-
-export const fetchAdminRecentBookings = async (): Promise<RecentBooking[]> => {
-  try {
-    const serviceRequests = await apiRequest<unknown[]>("/service-requests");
-    const allRequests = Array.isArray(serviceRequests) ? serviceRequests : [];
-    
-    return allRequests.slice(0, 10).map((r: any) => ({
-      id: r.id || r._id || "",
-      service: r.service?.title || "Service",
-      homeowner: r.homeowner?.fullName || r.homeowner?.firstName + " " + r.homeowner?.lastName || "Unknown",
-      provider: r.provider?.firstName + " " + r.provider?.lastName || "Unassigned",
-      date: r.preferredDate || r.createdAt || "",
-      amount: 0, // No amount data in current API
-      status: r.status === "completed" ? "Completed" : 
-              r.status === "in_progress" ? "In Progress" : 
-              r.status === "accepted" ? "Approved" : "Approved",
-    }));
-  } catch {
-    return [];
-  }
-};
-
-export const fetchProviderApprovals = async (): Promise<ProviderApproval[]> => {
-  try {
-    const providers = await apiRequest<unknown[]>("/providers");
-    const allProviders = Array.isArray(providers) ? providers : [];
-    
-    // Since there's no approval status, return empty array
-    // In a real implementation, you'd filter by approval status
-    return [];
-  } catch {
-    return [];
-  }
-};
-
-export const fetchAdminCustomers = async (): Promise<AdminCustomer[]> => {
-  try {
-    const homeowners = await apiRequest<unknown[]>("/homeowners");
-    const allHomeowners = Array.isArray(homeowners) ? homeowners : [];
-    
-    return allHomeowners.slice(0, 10).map((h: any) => ({
-      id: h.id || h._id || "",
-      name: h.fullName || h.firstName + " " + h.lastName || "Unknown",
-      bookings: 0, // No booking count data in current API
-    }));
-  } catch {
-    return [];
-  }
-};
-
-export const fetchAdminProviders = async (): Promise<AdminProvider[]> => {
-  try {
-    const providers = await apiRequest<unknown[]>("/providers");
-    const allProviders = Array.isArray(providers) ? providers : [];
-    
-    return allProviders.slice(0, 10).map((p: any) => ({
-      id: p.id || p._id || "",
-      name: p.firstName + " " + p.lastName || p.businessName || "Unknown",
-      rating: p.averageRating || 0,
-      jobs: 0, // No job count data in current API
-    }));
-  } catch {
-    return [];
-  }
-};
-
-export const fetchAdminDisputes = async (): Promise<AdminDispute[]> => {
-  try {
-    // No disputes endpoint in current API
-    // In a real implementation, this would fetch from /disputes or similar
-    return [];
-  } catch {
-    return [];
-  }
+  return mapServiceRequestFromApi(response);
 };

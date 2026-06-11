@@ -12,12 +12,20 @@ type Props = {
   acceptedRequests: ServiceRequest[];
   requests: ServiceRequest[];
   statsLoading: boolean;
+  onAccept: (id: string) => void;
+  onDecline: (id: string) => void;
+  updatingRequestId: string | null;
+  actionError?: string | null;
 };
 
 export default function RequestsTab({
   acceptedRequests,
   requests,
   statsLoading,
+  onAccept,
+  onDecline,
+  updatingRequestId,
+  actionError,
 }: Props) {
   return (
     <div className="mt-6 space-y-6">
@@ -29,6 +37,12 @@ export default function RequestsTab({
           </h2>
         </div>
 
+        {actionError ? (
+          <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {actionError}
+          </p>
+        ) : null}
+
         <div className="mt-8 space-y-3">
           {statsLoading ? (
             <p className="py-4 text-sm text-black/60">Loading requests...</p>
@@ -38,7 +52,13 @@ export default function RequestsTab({
             </p>
           ) : (
             requests.map((request) => (
-              <NewRequestCard key={request.id} request={request} />
+              <NewRequestCard
+                key={request.id}
+                request={request}
+                onAccept={onAccept}
+                onDecline={onDecline}
+                isUpdating={updatingRequestId === request.id}
+              />
             ))
           )}
         </div>
@@ -68,7 +88,17 @@ export default function RequestsTab({
   );
 }
 
-function NewRequestCard({ request }: { request: ServiceRequest }) {
+function NewRequestCard({
+  request,
+  onAccept,
+  onDecline,
+  isUpdating,
+}: {
+  request: ServiceRequest;
+  onAccept: (id: string) => void;
+  onDecline: (id: string) => void;
+  isUpdating: boolean;
+}) {
   const customerName = parseHomeownerName(request.homeowner);
   const priority = (request.priority || "normal").toLowerCase();
   const location = formatRequestLocation(request);
@@ -123,9 +153,11 @@ function NewRequestCard({ request }: { request: ServiceRequest }) {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="inline-flex h-8 items-center rounded-lg bg-[#00a83f] px-4 text-sm font-medium text-white hover:bg-[#008f36]"
+            onClick={() => onAccept(request.id)}
+            disabled={isUpdating}
+            className="inline-flex h-8 items-center rounded-lg bg-[#00a83f] px-4 text-sm font-medium text-white hover:bg-[#008f36] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Accept Job
+            {isUpdating ? "Working..." : "Accept Job"}
           </button>
           <button
             type="button"
@@ -153,7 +185,9 @@ function NewRequestCard({ request }: { request: ServiceRequest }) {
           )}
           <button
             type="button"
-            className="inline-flex h-8 items-center rounded-lg border border-black/10 bg-white px-4 text-sm font-medium text-red-600 hover:bg-red-50"
+            onClick={() => onDecline(request.id)}
+            disabled={isUpdating}
+            className="inline-flex h-8 items-center rounded-lg border border-black/10 bg-white px-4 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Decline
           </button>

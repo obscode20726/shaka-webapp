@@ -6,7 +6,9 @@ import {
   fetchProviderDashboardMetrics,
   fetchServiceRequestsForProvider,
   unwrapArrayResponse,
+  updateServiceRequestStatus,
 } from "@/lib/api";
+import type { ServiceRequestStatus } from "@/lib/api";
 import {
   isActiveRequest,
   isCompletedRequest,
@@ -45,6 +47,12 @@ export function useProviderDashboardData() {
     RecentActivityItem[]
   >([]);
   const [statsLoading, setStatsLoading] = React.useState(true);
+  const [updatingRequestId, setUpdatingRequestId] = React.useState<
+    string | null
+  >(null);
+  const [requestActionError, setRequestActionError] = React.useState<
+    string | null
+  >(null);
 
   React.useEffect(() => {
     const fetchProfile = async () => {
@@ -156,8 +164,7 @@ export function useProviderDashboardData() {
         const providerStats = metrics?.provider_stats;
 
         setStats({
-          newRequests:
-            providerStats?.new_requests_count ?? pendingRequests.length,
+          newRequests: pendingRequests.length,
           upcomingJobs:
             providerStats?.upcoming_jobs_count ?? upcomingJobs,
           monthlyEarnings:
@@ -194,17 +201,58 @@ export function useProviderDashboardData() {
     return requests.filter((request) => isPendingRequest(request.status));
   }, [requests]);
 
+  const liveStats = React.useMemo<DashboardStats>(
+    () => ({ ...stats, newRequests: pendingRequests.length }),
+    [stats, pendingRequests.length],
+  );
+
+  const updateRequestStatus = React.useCallback(
+    async (id: string, status: ServiceRequestStatus) => {
+      setRequestActionError(null);
+      setUpdatingRequestId(id);
+      try {
+        await updateServiceRequestStatus(id, status);
+        setRequests((prev) =>
+          prev.map((request) =>
+            request.id === id ? { ...request, status } : request,
+          ),
+        );
+      } catch (err: unknown) {
+        setRequestActionError(
+          err instanceof Error ? err.message : "Unable to update the request",
+        );
+      } finally {
+        setUpdatingRequestId(null);
+      }
+    },
+    [],
+  );
+
+  const acceptRequest = React.useCallback(
+    (id: string) => updateRequestStatus(id, "accepted"),
+    [updateRequestStatus],
+  );
+
+  const declineRequest = React.useCallback(
+    (id: string) => updateRequestStatus(id, "cancelled"),
+    [updateRequestStatus],
+  );
+
   return {
+    acceptRequest,
     acceptedRequests,
     bookings,
+    declineRequest,
     loading,
     payments,
     pendingRequests,
     profile,
     profileError,
     recentActivity,
+    requestActionError,
     requests,
-    stats,
+    stats: liveStats,
     statsLoading,
+    updatingRequestId,
   };
 }

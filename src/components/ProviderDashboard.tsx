@@ -37,17 +37,21 @@ export default function ProviderDashboard() {
   }, []);
 
   const {
+    acceptRequest,
     acceptedRequests,
     bookings,
+    declineRequest,
     loading,
     payments,
     pendingRequests,
     profile,
     profileError,
     recentActivity,
+    requestActionError,
     requests,
     stats,
     statsLoading,
+    updatingRequestId,
   } = useProviderDashboardData();
 
   const tabs = React.useMemo((): Array<{ name: TabName; badge?: string }> => {
@@ -125,6 +129,10 @@ export default function ProviderDashboard() {
               acceptedRequests={acceptedRequests}
               requests={pendingRequests}
               statsLoading={statsLoading}
+              onAccept={acceptRequest}
+              onDecline={declineRequest}
+              updatingRequestId={updatingRequestId}
+              actionError={requestActionError}
             />
           ) : activeTab === "Schedule" ? (
             <ScheduleTab
