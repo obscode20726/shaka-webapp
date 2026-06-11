@@ -487,3 +487,29 @@ export const fetchServiceRequestsForProvider = async (): Promise<
     matchIds,
   );
 };
+
+export type ServiceRequestStatus =
+  | "pending"
+  | "accepted"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
+
+/**
+ * Update a service request's status (e.g. provider accept/decline).
+ * Maps to PATCH /service-requests/{id}/status.
+ */
+export const updateServiceRequestStatus = async (
+  id: string,
+  status: ServiceRequestStatus,
+): Promise<ServiceRequestItem | null> => {
+  const response = await apiRequest<unknown>(
+    `/service-requests/${encodeURIComponent(id)}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    },
+  );
+
+  return mapServiceRequestFromApi(response);
+};
