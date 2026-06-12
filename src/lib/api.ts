@@ -563,21 +563,63 @@ export interface AdminDispute {
   status: "Pending Review";
 }
 
+function mapAdminCustomerFromApi(raw: unknown): AdminCustomer | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const record = raw as Record<string, unknown>;
+  const id = readId(record.id) ?? readId(record._id);
+  if (!id) return null;
+
+  const fullName = readString(record.fullName);
+  const firstName = readString(record.firstName);
+  const lastName = readString(record.lastName);
+  const name =
+    fullName || [firstName, lastName].filter(Boolean).join(" ") || "Unknown";
+
+  return { id, name, bookings: 0 };
+}
+
+function mapAdminProviderFromApi(raw: unknown): AdminProvider | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const record = raw as Record<string, unknown>;
+  const id = readId(record.id) ?? readId(record._id);
+  if (!id) return null;
+
+  const firstName = readString(record.firstName);
+  const lastName = readString(record.lastName);
+  const businessName = readString(record.businessName);
+  const name =
+    [firstName, lastName].filter(Boolean).join(" ") || businessName || "Unknown";
+  const rating =
+    typeof record.averageRating === "number" ? record.averageRating : 0;
+
+  return { id, name, rating, jobs: 0 };
+}
+
+function formatServiceRequestPersonName(
+  person?: ServiceRequestHomeowner | ServiceRequestProviderRef,
+) {
+  if (!person) return undefined;
+  if ("fullName" in person && person.fullName) return person.fullName;
+  const parts = [person.firstName, person.lastName].filter(Boolean);
+  return parts.length > 0 ? parts.join(" ") : undefined;
+}
+
 export const fetchAdminSummaryStats = async (): Promise<AdminSummaryStats> => {
   try {
-    const [users, providers, serviceRequests] = await Promise.all([
+    const [users, providers, serviceRequestsResponse] = await Promise.all([
       apiRequest<unknown[]>("/users"),
       apiRequest<unknown[]>("/providers"),
-      apiRequest<unknown[]>("/service-requests"),
+      apiRequest<unknown>("/service-requests"),
     ]);
 
     const totalUsers = Array.isArray(users) ? users.length : 0;
-    const allProviders = Array.isArray(providers) ? providers : [];
-    const activeProviders = allProviders.length;
+    const activeProviders = Array.isArray(providers) ? providers.length : 0;
     const pendingApprovals = 0;
-    const allRequests = Array.isArray(serviceRequests) ? serviceRequests : [];
-    const activeBookings = allRequests.filter((r: any) => 
-      r.status === "in_progress" || r.status === "accepted"
+    const allRequests = unwrapServiceRequests(serviceRequestsResponse);
+    const activeBookings = allRequests.filter(
+      (r) => r.status === "in_progress" || r.status === "accepted",
     ).length;
     const platformRevenue = 0;
 
@@ -601,15 +643,18 @@ export const fetchAdminSummaryStats = async (): Promise<AdminSummaryStats> => {
 
 export const fetchAdminPlatformStats = async (): Promise<PlatformStats> => {
   try {
-    const serviceRequests = await apiRequest<unknown[]>("/service-requests");
-    const allRequests = Array.isArray(serviceRequests) ? serviceRequests : [];
-    
+    const serviceRequestsResponse = await apiRequest<unknown>("/service-requests");
+    const allRequests = unwrapServiceRequests(serviceRequestsResponse);
+
     const totalTransactionVolume = 0;
     const platformFees = 0;
     const averageJobValue = 0;
-    const completionRate = allRequests.length > 0 
-      ? (allRequests.filter((r: any) => r.status === "completed").length / allRequests.length) * 100 
-      : 0;
+    const completionRate =
+      allRequests.length > 0
+        ? (allRequests.filter((r) => r.status === "completed").length /
+            allRequests.length) *
+          100
+        : 0;
     const customerSatisfaction = 4.5;
 
     return {
@@ -632,19 +677,22 @@ export const fetchAdminPlatformStats = async (): Promise<PlatformStats> => {
 
 export const fetchAdminRecentBookings = async (): Promise<RecentBooking[]> => {
   try {
-    const serviceRequests = await apiRequest<unknown[]>("/service-requests");
-    const allRequests = Array.isArray(serviceRequests) ? serviceRequests : [];
-    
-    return allRequests.slice(0, 10).map((r: any) => ({
-      id: r.id || r._id || "",
+    const serviceRequestsResponse = await apiRequest<unknown>("/service-requests");
+    const allRequests = unwrapServiceRequests(serviceRequestsResponse);
+
+    return allRequests.slice(0, 10).map((r) => ({
+      id: r.id,
       service: r.service?.title || "Service",
-      homeowner: r.homeowner?.fullName || r.homeowner?.firstName + " " + r.homeowner?.lastName || "Unknown",
-      provider: r.provider?.firstName + " " + r.provider?.lastName || "Unassigned",
-      date: r.preferredDate || r.createdAt || "",
+      homeowner: formatServiceRequestPersonName(r.homeowner) || "Unknown",
+      provider: formatServiceRequestPersonName(r.provider) || "Unassigned",
+      date: r.preferredDate || "",
       amount: 0,
-      status: r.status === "completed" ? "Completed" : 
-              r.status === "in_progress" ? "In Progress" : 
-              r.status === "accepted" ? "Approved" : "Approved",
+      status:
+        r.status === "completed"
+          ? "Completed"
+          : r.status === "in_progress"
+            ? "In Progress"
+            : "Approved",
     }));
   } catch {
     return [];
@@ -653,9 +701,8 @@ export const fetchAdminRecentBookings = async (): Promise<RecentBooking[]> => {
 
 export const fetchProviderApprovals = async (): Promise<ProviderApproval[]> => {
   try {
-    const providers = await apiRequest<unknown[]>("/providers");
-    const allProviders = Array.isArray(providers) ? providers : [];
-    
+    await apiRequest<unknown[]>("/providers");
+
     return [];
   } catch {
     return [];
@@ -666,12 +713,11 @@ export const fetchAdminCustomers = async (): Promise<AdminCustomer[]> => {
   try {
     const homeowners = await apiRequest<unknown[]>("/homeowners");
     const allHomeowners = Array.isArray(homeowners) ? homeowners : [];
-    
-    return allHomeowners.slice(0, 10).map((h: any) => ({
-      id: h.id || h._id || "",
-      name: h.fullName || h.firstName + " " + h.lastName || "Unknown",
-      bookings: 0,
-    }));
+
+    return allHomeowners
+      .slice(0, 10)
+      .map(mapAdminCustomerFromApi)
+      .filter((customer): customer is AdminCustomer => customer !== null);
   } catch {
     return [];
   }
@@ -681,13 +727,11 @@ export const fetchAdminProviders = async (): Promise<AdminProvider[]> => {
   try {
     const providers = await apiRequest<unknown[]>("/providers");
     const allProviders = Array.isArray(providers) ? providers : [];
-    
-    return allProviders.slice(0, 10).map((p: any) => ({
-      id: p.id || p._id || "",
-      name: p.firstName + " " + p.lastName || p.businessName || "Unknown",
-      rating: p.averageRating || 0,
-      jobs: 0,
-    }));
+
+    return allProviders
+      .slice(0, 10)
+      .map(mapAdminProviderFromApi)
+      .filter((provider): provider is AdminProvider => provider !== null);
   } catch {
     return [];
   }
