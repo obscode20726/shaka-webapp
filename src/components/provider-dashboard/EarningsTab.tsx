@@ -23,6 +23,10 @@ export default function EarningsTab({
   earningsSnapshot,
   statsLoading,
 }: Props) {
+  console.log("DEBUG EarningsTab: earningsSnapshot received:", earningsSnapshot);
+  console.log("DEBUG EarningsTab: statsLoading:", statsLoading);
+  console.log("DEBUG EarningsTab: thisMonth value:", earningsSnapshot.thisMonth);
+  
   return (
     <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
       <section className="rounded-2xl border border-black/10 bg-white p-4 sm:p-6">

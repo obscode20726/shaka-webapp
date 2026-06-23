@@ -3,7 +3,7 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { apiRequest } from "@/lib/api";
-import SignupOtpVerification from "@/components/SignupOtpVerification";
+// import SignupOtpVerification from "@/components/SignupOtpVerification";
 import {
   isValidRwandanMobile,
   normalizeRwandanMobileDigits,
@@ -84,29 +84,30 @@ export default function ProviderRegistration() {
     }
   };
 
-  const completeProfileAfterOtp = async (verificationData?: {
-    token?: string;
-    access_token?: string;
-    user?: unknown;
-  }) => {
-    if (verificationData?.token || verificationData?.access_token) {
-      persistAuth(verificationData);
-    } else {
-      const loginData = await apiRequest("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
-          phone: normalizeRwandanMobileDigits(form.phone),
-          password: form.password,
-        }),
-      });
-      persistAuth(loginData);
-    }
+  // OTP-related functions commented out until backend OTP is ready
+  // const completeProfileAfterOtp = async (verificationData?: {
+  //   token?: string;
+  //   access_token?: string;
+  //   user?: unknown;
+  // }) => {
+  //   if (verificationData?.token || verificationData?.access_token) {
+  //     persistAuth(verificationData);
+  //   } else {
+  //     const loginData = await apiRequest("/auth/login", {
+  //       method: "POST",
+  //       body: JSON.stringify({
+  //         phone: normalizeRwandanMobileDigits(form.phone),
+  //         password: form.password,
+  //       }),
+  //     });
+  //     persistAuth(loginData);
+  //   }
 
-    await apiRequest("/providers", {
-      method: "POST",
-      body: JSON.stringify(buildProviderProfilePayload()),
-    });
-  };
+  //   await apiRequest("/providers", {
+  //     method: "POST",
+  //     body: JSON.stringify(buildProviderProfilePayload()),
+  //   });
+  // };
 
   const handleProviderSignup = async () => {
     if (!validateStep1()) {
@@ -145,22 +146,29 @@ export default function ProviderRegistration() {
         }),
       });
 
-      // 2️⃣ Save token
-      sessionStorage.setItem("pending_signup_email", form.email.trim());
-      sessionStorage.setItem(
-        "pending_provider_profile",
-        JSON.stringify(buildProviderProfilePayload()),
-      );
-      if (authData?.user) {
-        sessionStorage.setItem("pending_signup_user", JSON.stringify(authData.user));
+      // Persist authentication and create profile directly without OTP
+      if (authData?.token || authData?.access_token) {
+        persistAuth(authData);
+      } else {
+        // If no token returned, login to get token
+        const loginData = await apiRequest("/auth/login", {
+          method: "POST",
+          body: JSON.stringify({
+            phone: phoneDigits,
+            password: form.password,
+          }),
+        });
+        persistAuth(loginData);
       }
 
-      setStep(4);
+      // 2️⃣ Create provider profile
+      await apiRequest("/providers", {
+        method: "POST",
+        body: JSON.stringify(buildProviderProfilePayload()),
+      });
 
-
-      // 3️⃣ Create provider profile
-
-      // ✅ SUCCESS → go to step 4
+      // ✅ SUCCESS → go to step 5 (skip OTP step 4)
+      setStep(5);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "signup failed";
       setError(message);
@@ -169,46 +177,46 @@ export default function ProviderRegistration() {
     }
   };
 
-  const handleVerifyOtp = async (otp: string) => {
-    setError("");
+  // const handleVerifyOtp = async (otp: string) => {
+  //   setError("");
 
-    try {
-      setLoading(true);
-      const verificationData = await apiRequest("/auth/verify-signup-otp", {
-        method: "POST",
-        body: JSON.stringify({
-          email: form.email.trim(),
-          otp,
-        }),
-      });
+  //   try {
+  //     setLoading(true);
+  //     const verificationData = await apiRequest("/auth/verify-signup-otp", {
+  //       method: "POST",
+  //       body: JSON.stringify({
+  //         email: form.email.trim(),
+  //         otp,
+  //       }),
+  //     });
 
-      await completeProfileAfterOtp(verificationData);
-      sessionStorage.removeItem("pending_signup_email");
-      sessionStorage.removeItem("pending_provider_profile");
-      sessionStorage.removeItem("pending_signup_user");
-      setStep(5);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Verification failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     await completeProfileAfterOtp(verificationData);
+  //     sessionStorage.removeItem("pending_signup_email");
+  //     sessionStorage.removeItem("pending_provider_profile");
+  //     sessionStorage.removeItem("pending_signup_user");
+  //     setStep(5);
+  //   } catch (err: unknown) {
+  //     setError(err instanceof Error ? err.message : "Verification failed");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
-  const handleResendOtp = async () => {
-    setError("");
+  // const handleResendOtp = async () => {
+  //   setError("");
 
-    try {
-      setLoading(true);
-      await apiRequest("/auth/resend-signup-otp", {
-        method: "POST",
-        body: JSON.stringify({ email: form.email.trim() }),
-      });
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Unable to resend code");
-    } finally {
-      setLoading(false);
-    }
-  };
+  //   try {
+  //     setLoading(true);
+  //     await apiRequest("/auth/resend-signup-otp", {
+  //       method: "POST",
+  //       body: JSON.stringify({ email: form.email.trim() }),
+  //     });
+  //   } catch (err: unknown) {
+  //     setError(err instanceof Error ? err.message : "Unable to resend code");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const currentPercent = STEPS[step - 1]?.percent ?? 100;
   const isSuccess = step === 5;
@@ -276,21 +284,21 @@ export default function ProviderRegistration() {
     setForm((f) => ({ ...f, [key]: value }));
   };
 
-  if (step === 4) {
-    return (
-      <SignupOtpVerification
-        email={form.email.trim()}
-        loading={loading}
-        error={error}
-        onBack={() => {
-          setError("");
-          setStep(3);
-        }}
-        onResend={handleResendOtp}
-        onVerify={handleVerifyOtp}
-      />
-    );
-  }
+  // if (step === 4) {
+  //   return (
+  //     <SignupOtpVerification
+  //       email={form.email.trim()}
+  //       loading={loading}
+  //       error={error}
+  //       onBack={() => {
+  //         setError("");
+  //         setStep(3);
+  //       }}
+  //       onResend={handleResendOtp}
+  //       onVerify={handleVerifyOtp}
+  //     />
+  //   );
+  // }
 
   return (
     <section className="min-h-screen bg-[#f6f7f9] py-8 sm:py-12">

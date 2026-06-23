@@ -8,20 +8,21 @@ export default function Hero() {
         background: "linear-gradient(180deg, #FFF7ED 0%, #FFFFFF 100%)",
       }}
     >
-      <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+      <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
         <div className="text-center max-w-[860px] mx-auto">
-          <h1 className="text-[24px] sm:text-[32px] md:text-[44px] leading-[1.15] font-semibold tracking-tight text-black gap-2">
-            Connect with trusted
+          <h1 className="text-[36px] sm:text-[32px] md:text-[44px] leading-[1.2] sm:leading-[1.15] font-semibold tracking-tight text-black">
+            <span className="block sm:hidden">Connect with</span>
+            <span className="block sm:hidden">trusted</span>
+            <span className="hidden sm:inline">Connect with trusted</span>
             <br className="hidden sm:block" />
 
-            <span className="relative inline-block text-[#ff6a00]">
+            <span className="relative inline-block text-[#ff6a00] mt-1 sm:mt-0">
               service providers
-
-              {/* Orange underline */}
               <svg
-                className="absolute left-1/2 -translate-x-1/2 -bottom-5 md:-bottom-6 w-[180px] sm:w-[240px]"
+                className="absolute left-1/2 -translate-x-1/2 -bottom-4 sm:-bottom-5 md:-bottom-6 w-[180px] sm:w-[240px]"
                 viewBox="0 0 200 20"
                 fill="none"
+                aria-hidden="true"
               >
                 <path
                   d="M2 10C60 0 140 0 198 10"
@@ -32,27 +33,27 @@ export default function Hero() {
               </svg>
             </span>
 
-            <span className="block pt-2">in your area</span>
+            <span className="block pt-5 sm:pt-2">in your area</span>
           </h1>
 
-          <p className="mt-4 text-black/70 text-sm sm:text-base">
+          <p className="mt-6 sm:mt-4 text-black/70 text-sm sm:text-base leading-relaxed max-w-[320px] sm:max-w-none mx-auto">
             From electricians to cleaners, find skilled professionals for all
-            home service needs. Vetted, reliable, and ready to help.
+            your home service needs. Vetted, reliable, and ready to help.
           </p>
 
-          <div className="mt-6 flex items-center justify-center gap-3">
-            <button className="h-10 px-5 rounded-md bg-[#ff6a00] text-white text-sm font-medium hover:brightness-95">
+          <div className="mt-8 sm:mt-6 flex items-center justify-center gap-2 sm:gap-3">
+            <button className="h-10 px-4 sm:px-5 rounded-lg sm:rounded-md bg-[#ff6a00] text-white text-sm font-medium hover:brightness-95">
               Find Services
             </button>
 
-            <button className="h-10 px-5 rounded-md border border-black/10 text-sm font-medium text-black hover:bg-black/[.04]">
+            <button className="h-10 px-4 sm:px-5 rounded-lg sm:rounded-md bg-white border border-black/10 text-sm font-medium text-black hover:bg-black/[.04]">
               Join as Provider
             </button>
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-6 text-xs text-black/60">
+          <div className="mt-8 sm:mt-6 flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-black/60">
             <div className="flex items-center gap-2">
-              <span>⭐</span>
+              <span className="text-yellow-500">★</span>
               <span>4.8/5 Average Rating</span>
             </div>
 

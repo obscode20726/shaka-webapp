@@ -59,7 +59,7 @@ export function formatCurrency(amount: number) {
 
 export function formatMoney(amount: number) {
   if (!Number.isFinite(amount)) return "-";
-  return `$${Math.round(amount)}`;
+  return formatCurrency(amount);
 }
 
 export function formatShortDate(iso?: string) {

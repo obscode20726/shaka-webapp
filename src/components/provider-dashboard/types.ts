@@ -45,6 +45,7 @@ export type Booking = {
   id: string;
   scheduledAt: string;
   escrowStatus: string;
+  amount?: number;
 };
 
 export type RecentActivityItem = {
@@ -70,6 +71,9 @@ export type DashboardStats = {
   newRequests: number;
   upcomingJobs: number;
   monthlyEarnings: number;
+  lastMonthEarnings: number;
+  yearToDateEarnings: number;
+  averageJobValue: number;
   rating: number;
   jobsCompleted: number;
   responseRate: string;

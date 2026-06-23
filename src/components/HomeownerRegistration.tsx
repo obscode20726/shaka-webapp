@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 import { apiRequest } from "@/lib/api";
-import SignupOtpVerification from "@/components/SignupOtpVerification";
+// import SignupOtpVerification from "@/components/SignupOtpVerification";
 import {
   isValidRwandanMobile,
   normalizeRwandanMobileDigits,
@@ -131,16 +131,28 @@ export default function HomeownerRegistration() {
         }),
       });
 
-      sessionStorage.setItem("pending_signup_email", form.email.trim());
-      sessionStorage.setItem(
-        "pending_homeowner_profile",
-        JSON.stringify(buildHomeownerProfilePayload()),
-      );
-      if (data?.user) {
-        sessionStorage.setItem("pending_signup_user", JSON.stringify(data.user));
+      // Persist authentication and create profile directly without OTP
+      if (data?.token || data?.access_token) {
+        persistAuth(data);
+      } else {
+        // If no token returned, login to get token
+        const loginData = await apiRequest("/auth/login", {
+          method: "POST",
+          body: JSON.stringify({
+            phone: phoneDigits,
+            password: form.password,
+          }),
+        });
+        persistAuth(loginData);
       }
 
-      setStep(4);
+      // Create homeowner profile
+      await apiRequest("/homeowners", {
+        method: "POST",
+        body: JSON.stringify(buildHomeownerProfilePayload()),
+      });
+
+      setStep(5);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {
@@ -179,86 +191,87 @@ export default function HomeownerRegistration() {
     }
   };
 
-  const completeProfileAfterOtp = async (verificationData?: {
-    token?: string;
-    access_token?: string;
-    user?: unknown;
-  }) => {
-    if (verificationData?.token || verificationData?.access_token) {
-      persistAuth(verificationData);
-    } else {
-      const loginData = await apiRequest("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
-          phone: normalizeRwandanMobileDigits(form.phone),
-          password: form.password,
-        }),
-      });
-      persistAuth(loginData);
-    }
+  // OTP-related functions commented out until backend OTP is ready
+  // const completeProfileAfterOtp = async (verificationData?: {
+  //   token?: string;
+  //   access_token?: string;
+  //   user?: unknown;
+  // }) => {
+  //   if (verificationData?.token || verificationData?.access_token) {
+  //     persistAuth(verificationData);
+  //   } else {
+  //     const loginData = await apiRequest("/auth/login", {
+  //       method: "POST",
+  //       body: JSON.stringify({
+  //         phone: normalizeRwandanMobileDigits(form.phone),
+  //         password: form.password,
+  //       }),
+  //     });
+  //     persistAuth(loginData);
+  //   }
 
-    await apiRequest("/homeowners", {
-      method: "POST",
-      body: JSON.stringify(buildHomeownerProfilePayload()),
-    });
-  };
+  //   await apiRequest("/homeowners", {
+  //     method: "POST",
+  //     body: JSON.stringify(buildHomeownerProfilePayload()),
+  //   });
+  // };
 
-  const handleVerifyOtp = async (otp: string) => {
-    setError("");
+  // const handleVerifyOtp = async (otp: string) => {
+  //   setError("");
 
-    try {
-      setLoading(true);
-      const verificationData = await apiRequest("/auth/verify-signup-otp", {
-        method: "POST",
-        body: JSON.stringify({
-          email: form.email.trim(),
-          otp,
-        }),
-      });
+  //   try {
+  //     setLoading(true);
+  //     const verificationData = await apiRequest("/auth/verify-signup-otp", {
+  //       method: "POST",
+  //       body: JSON.stringify({
+  //         email: form.email.trim(),
+  //         otp,
+  //       }),
+  //     });
 
-      await completeProfileAfterOtp(verificationData);
-      sessionStorage.removeItem("pending_signup_email");
-      sessionStorage.removeItem("pending_homeowner_profile");
-      sessionStorage.removeItem("pending_signup_user");
-      setStep(5);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Verification failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     await completeProfileAfterOtp(verificationData);
+  //     sessionStorage.removeItem("pending_signup_email");
+  //     sessionStorage.removeItem("pending_homeowner_profile");
+  //     sessionStorage.removeItem("pending_signup_user");
+  //     setStep(5);
+  //   } catch (err: unknown) {
+  //     setError(err instanceof Error ? err.message : "Verification failed");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
-  const handleResendOtp = async () => {
-    setError("");
+  // const handleResendOtp = async () => {
+  //   setError("");
 
-    try {
-      setLoading(true);
-      await apiRequest("/auth/resend-signup-otp", {
-        method: "POST",
-        body: JSON.stringify({ email: form.email.trim() }),
-      });
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Unable to resend code");
-    } finally {
-      setLoading(false);
-    }
-  };
+  //   try {
+  //     setLoading(true);
+  //     await apiRequest("/auth/resend-signup-otp", {
+  //       method: "POST",
+  //       body: JSON.stringify({ email: form.email.trim() }),
+  //     });
+  //   } catch (err: unknown) {
+  //     setError(err instanceof Error ? err.message : "Unable to resend code");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
-  if (step === 4) {
-    return (
-      <SignupOtpVerification
-        email={form.email.trim()}
-        loading={loading}
-        error={error}
-        onBack={() => {
-          setError("");
-          setStep(3);
-        }}
-        onResend={handleResendOtp}
-        onVerify={handleVerifyOtp}
-      />
-    );
-  }
+  // if (step === 4) {
+  //   return (
+  //     <SignupOtpVerification
+  //       email={form.email.trim()}
+  //       loading={loading}
+  //       error={error}
+  //       onBack={() => {
+  //         setError("");
+  //         setStep(3);
+  //       }}
+  //       onResend={handleResendOtp}
+  //       onVerify={handleVerifyOtp}
+  //     />
+  //   );
+  // }
 
   return (
     <section className="min-h-screen bg-[#f6f7f9] py-16 sm:py-[92px]">
@@ -538,7 +551,7 @@ export default function HomeownerRegistration() {
               <p className="text-base font-medium text-black">What&apos;s Next?</p>
               <ol className="mt-6 space-y-4">
                 {[
-                  "Verify your email with the signup OTP",
+                  "Your account has been created successfully",
                   "Sign in anytime with your phone number and password",
                   "Browse and book your first service",
                 ].map((item, index) => (
