@@ -2,17 +2,17 @@ import React from "react";
 
 const testimonials = [
   {
-    name: "Sarah Johnson",
+    name: "Marie Claire Uwimana",
     role: "Homeowner",
     text: "Found an amazing electrician through Shaka who fixed our kitchen wiring quickly and professionally. The booking process was so easy!",
   },
   {
-    name: "Mike Chen",
+    name: "Jean Paul Niyonzima",
     role: "Plumber",
     text: "As a service provider, Shaka has helped me grow my business significantly. Great platform with genuine customers and fair pricing.",
   },
   {
-    name: "Lisa Rodriguez",
+    name: "Claudine Uwimana",
     role: "Homeowner",
     text: "The gardener I hired through Shaka transformed our backyard completely. Highly recommend for anyone looking for quality services.",
   },

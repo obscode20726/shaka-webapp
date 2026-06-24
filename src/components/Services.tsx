@@ -13,7 +13,7 @@ const cards: Card[] = [
   {
     title: "Removal Service",
     desc: "Professional movers for home and office relocations",
-    imageSrc: "/images/Electrical.png",
+    imageSrc: "/images/Removal.png",
     imageAlt: "Removal service van loading household items",
     iconSrc: "/icons/electricity icon.svg",
   },

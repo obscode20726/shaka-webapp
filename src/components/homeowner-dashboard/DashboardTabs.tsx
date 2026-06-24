@@ -15,8 +15,8 @@ type Props = {
 
 export default function DashboardTabs({ activeTab, onChange }: Props) {
   return (
-    <div className="mt-5 rounded-full bg-[#eff1f4] p-1">
-      <div className="grid grid-cols-2 gap-1 sm:grid-cols-5">
+    <div className="mt-5 overflow-x-auto rounded-full bg-[#eff1f4] p-1">
+      <div className="grid min-w-[840px] grid-cols-5 gap-1">
         {homeownerTabs.map((tab, index) => (
           <button
             key={tab}
