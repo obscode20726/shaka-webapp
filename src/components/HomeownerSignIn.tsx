@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import React, { useState } from "react";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, type AuthTokenResponse } from "@/lib/api";
 import {
   isValidRwandanMobile,
   normalizeRwandanMobileDigits,
@@ -41,7 +41,7 @@ export default function HomeownerSignIn() {
       setError("");
       const phoneDigits = normalizeRwandanMobileDigits(form.phone);
 
-      const data = await apiRequest("/auth/login", {
+      const data = await apiRequest<AuthTokenResponse>("/auth/login", {
         method: "POST",
         body: JSON.stringify({
           phone: phoneDigits,
@@ -49,13 +49,20 @@ export default function HomeownerSignIn() {
         }),
       });
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      const token = data?.token || data?.access_token;
+      if (!token) {
+        throw new Error("Login succeeded but no token was returned.");
+      }
+
+      localStorage.setItem("token", token);
+      if (data?.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
 
       // Server routes (dashboard pages) check cookies(), not localStorage.
       // Set a cookie so Next.js server components can read it.
       const baseCookie = `token=${encodeURIComponent(
-        data.token
+        token
       )}; Path=/; SameSite=Lax`;
       const isHttps =
         typeof window !== "undefined" && window.location.protocol === "https:";

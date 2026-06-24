@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { apiRequest, fetchServiceRequests } from "@/lib/api";
+import { apiRequest, fetchServiceRequests, type UserMeResponse } from "@/lib/api";
 import type {
   Booking,
   HomeownerProfile,
@@ -35,8 +35,8 @@ export function useHomeownerDashboardData() {
   React.useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const userProfile = await apiRequest("/users/me");
-        setProfile(userProfile.homeownerProfile);
+        const userProfile = await apiRequest<UserMeResponse>("/users/me");
+        setProfile(userProfile.homeownerProfile ?? null);
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : "Unable to load profile";

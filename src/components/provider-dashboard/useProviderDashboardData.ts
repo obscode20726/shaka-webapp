@@ -16,6 +16,8 @@ import {
 
   updateServiceRequestStatus,
 
+  type UserMeResponse,
+
 } from "@/lib/api";
 
 import type { ServiceRequestStatus } from "@/lib/api";
@@ -118,9 +120,9 @@ export function useProviderDashboardData() {
 
       try {
 
-        const userProfile = await apiRequest("/users/me");
+        const userProfile = await apiRequest<UserMeResponse>("/users/me");
 
-        setProfile(userProfile.providerProfile);
+        setProfile((userProfile.providerProfile as ProviderProfile | undefined) ?? null);
 
       } catch (err: unknown) {
 

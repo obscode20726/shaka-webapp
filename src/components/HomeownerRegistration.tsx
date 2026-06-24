@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, type AuthTokenResponse } from "@/lib/api";
 // import SignupOtpVerification from "@/components/SignupOtpVerification";
 import {
   isValidRwandanMobile,
@@ -120,7 +120,7 @@ export default function HomeownerRegistration() {
       setLoading(true);
       const phoneDigits = normalizeRwandanMobileDigits(form.phone);
 
-      const data = await apiRequest("/auth/signup", {
+      const data = await apiRequest<AuthTokenResponse>("/auth/signup", {
         method: "POST",
         body: JSON.stringify({
           email: form.email.trim(),
@@ -136,7 +136,7 @@ export default function HomeownerRegistration() {
         persistAuth(data);
       } else {
         // If no token returned, login to get token
-        const loginData = await apiRequest("/auth/login", {
+        const loginData = await apiRequest<AuthTokenResponse>("/auth/login", {
           method: "POST",
           body: JSON.stringify({
             phone: phoneDigits,
@@ -173,11 +173,7 @@ export default function HomeownerRegistration() {
     };
   };
 
-  const persistAuth = (data: {
-    token?: string;
-    access_token?: string;
-    user?: unknown;
-  }) => {
+  const persistAuth = (data: AuthTokenResponse) => {
     const token = data.token ?? data.access_token;
     if (!token) {
       throw new Error("Authentication succeeded but no token was returned.");

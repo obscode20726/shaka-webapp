@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import React, { useState } from "react";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, type AuthTokenResponse } from "@/lib/api";
 import {
   isValidRwandanMobile,
   normalizeRwandanMobileDigits,
@@ -45,7 +45,7 @@ export default function ProviderSignIn() {
       const phoneDigits = normalizeRwandanMobileDigits(form.phone);
 
       // ✅ LOGIN ONLY USES PHONE + PASSWORD
-      const data = await apiRequest("/auth/login", {
+      const data = await apiRequest<AuthTokenResponse>("/auth/login", {
         method: "POST",
         body: JSON.stringify({
           phone: phoneDigits,

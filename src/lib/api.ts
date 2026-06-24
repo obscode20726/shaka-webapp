@@ -58,6 +58,33 @@ type ErrorBody = {
 
 
 
+export type AuthTokenResponse = {
+  token?: string;
+  access_token?: string;
+  user?: unknown;
+};
+
+export type UserMeResponse = {
+  id?: string;
+  homeownerProfile?: {
+    fullName?: string;
+    city?: string;
+    address?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+  };
+  providerProfile?: {
+    id?: string;
+    userId?: string;
+    firstName?: string;
+    lastName?: string;
+    businessName?: string;
+    primaryService?: string;
+    yearsExperience?: number;
+    averageRating?: number;
+  };
+};
+
 function friendlyServerError(endpoint: string) {
 
 

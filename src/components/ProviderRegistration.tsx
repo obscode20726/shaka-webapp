@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import React, { useState } from "react";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, type AuthTokenResponse } from "@/lib/api";
 // import SignupOtpVerification from "@/components/SignupOtpVerification";
 import {
   isValidRwandanMobile,
@@ -66,11 +66,7 @@ export default function ProviderRegistration() {
     consentPrivacy: form.consentPrivacy,
   });
 
-  const persistAuth = (data: {
-    token?: string;
-    access_token?: string;
-    user?: unknown;
-  }) => {
+  const persistAuth = (data: AuthTokenResponse) => {
     const token = data.token ?? data.access_token;
     if (!token) {
       throw new Error("Authentication succeeded but no token was returned.");
@@ -135,7 +131,7 @@ export default function ProviderRegistration() {
       const phoneDigits = normalizeRwandanMobileDigits(form.phone);
 
       // 1️⃣ Create account
-      const authData = await apiRequest("/auth/signup", {
+      const authData = await apiRequest<AuthTokenResponse>("/auth/signup", {
         method: "POST",
         body: JSON.stringify({
           email: form.email.trim(),
@@ -151,7 +147,7 @@ export default function ProviderRegistration() {
         persistAuth(authData);
       } else {
         // If no token returned, login to get token
-        const loginData = await apiRequest("/auth/login", {
+        const loginData = await apiRequest<AuthTokenResponse>("/auth/login", {
           method: "POST",
           body: JSON.stringify({
             phone: phoneDigits,
