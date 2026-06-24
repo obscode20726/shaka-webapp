@@ -122,11 +122,7 @@ function friendlyServerError(endpoint: string) {
 
 
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-
-
-
-export async function apiRequest<T = any>(
+export async function apiRequest<T = unknown>(
 
 
 
