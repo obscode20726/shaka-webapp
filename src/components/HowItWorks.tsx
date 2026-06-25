@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { motion, Variants } from "framer-motion";
 
 const homeownerSteps = [
   {
@@ -45,17 +46,52 @@ export default function HowItWorks() {
 
   const steps = audience === "homeowners" ? homeownerSteps : providerSteps;
 
+  const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.22, 1, 0.36, 1] as const,
+      },
+    },
+  };
+
   return (
     <section className="bg-[#F9FAFB] py-12 sm:py-16">
-      <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8">
-        <h2 className="text-center text-[22px] sm:text-[26px] font-semibold text-black">
+      <motion.div
+        className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8"
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ margin: "-100px" }}
+      >
+        <motion.h2
+          variants={itemVariants}
+          className="text-center text-[22px] sm:text-[26px] font-semibold text-black"
+        >
           How Shaka Works
-        </h2>
-        <p className="text-center text-sm text-black/60 mt-1">
+        </motion.h2>
+        <motion.p
+          variants={itemVariants}
+          className="text-center text-sm text-black/60 mt-1"
+        >
           Simple, secure, and reliable for both homeowners and service providers
-        </p>
+        </motion.p>
 
-        <div className="mt-6 flex items-center justify-center">
+        <motion.div variants={itemVariants} className="mt-6 flex items-center justify-center">
           <div className="inline-flex rounded-full bg-[#ECECF0] p-1 border border-black/10">
             <button
               type="button"
@@ -80,12 +116,19 @@ export default function HowItWorks() {
               For Service Providers
             </button>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <motion.div
+          key={audience}
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4"
+        >
           {steps.map((s, idx) => (
-            <article
+            <motion.article
               key={s.title}
+              variants={itemVariants}
               className="rounded-xl border border-black/[.08] bg-white p-5 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
             >
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#fff5ee] text-2xl">
@@ -96,10 +139,10 @@ export default function HowItWorks() {
               </p>
               <h3 className="mt-1 font-semibold text-black">{s.title}</h3>
               <p className="mt-1 text-sm text-black/60">{s.desc}</p>
-            </article>
+            </motion.article>
           ))}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </section>
   );
 }

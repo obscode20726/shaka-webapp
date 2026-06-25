@@ -1,4 +1,7 @@
+"use client";
+
 import React from "react";
+import { motion, Variants } from "framer-motion";
 
 const testimonials = [
   {
@@ -19,21 +22,60 @@ const testimonials = [
 ];
 
 export default function Testimonials() {
+  const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.22, 1, 0.36, 1] as const,
+      },
+    },
+  };
+
   return (
     <section className="py-12 sm:py-16">
-      <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8">
-        <h2 className="text-center text-[22px] sm:text-[26px] font-semibold text-black">
+      <motion.div
+        className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8"
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ margin: "-100px" }}
+      >
+        <motion.h2
+          variants={itemVariants}
+          className="text-center text-[22px] sm:text-[26px] font-semibold text-black"
+        >
           What Our Users Say
-        </h2>
-        <p className="text-center text-sm text-black/60 mt-1">
+        </motion.h2>
+        <motion.p
+          variants={itemVariants}
+          className="text-center text-sm text-black/60 mt-1"
+        >
           Don&apos;t just take our word for it - hear from homeowners and
           providers who use Shaka
-        </p>
+        </motion.p>
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <motion.div
+          variants={containerVariants}
+          className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4"
+        >
           {testimonials.map((t, i) => (
-            <figure
+            <motion.figure
               key={i}
+              variants={itemVariants}
               className="rounded-xl border border-black/[.08] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
             >
               <div className="text-[#ffb400]">★★★★★</div>
@@ -47,10 +89,10 @@ export default function Testimonials() {
                   <p className="text-xs text-black/60">{t.role}</p>
                 </div>
               </figcaption>
-            </figure>
+            </motion.figure>
           ))}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </section>
   );
 }
