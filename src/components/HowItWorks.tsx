@@ -1,23 +1,24 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion, Variants } from "framer-motion";
 
 const homeownerSteps = [
   {
     title: "Search & Browse",
     desc: "Tell us what you need and browse qualified service providers in your area",
-    emoji: "🔎",
+    iconSrc: "/icons/MagnifyingGlass.svg",
   },
   {
     title: "Compare & Choose",
     desc: "View profiles, reviews, and pricing to select the perfect provider for your needs",
-    emoji: "👥",
+    iconSrc: "/icons/choose.svg",
   },
   {
     title: "Book & Relax",
     desc: "Schedule your service and let our vetted professionals take care of the rest",
-    emoji: "🗓️",
+    iconSrc: "/icons/book.svg",
   },
 ];
 
@@ -25,17 +26,17 @@ const providerSteps = [
   {
     title: "Sign Up",
     desc: "Create your profile and showcase your skills, experience, and certifications",
-    emoji: "📱",
+    iconSrc: "/icons/DeviceMobileCamera.svg",
   },
   {
     title: "Get Booked",
     desc: "Receive job requests from homeowners and build your reputation through reviews",
-    emoji: "⭐",
+    iconSrc: "/icons/Star.svg",
   },
   {
     title: "Earn More",
     desc: "Grow your business with steady work and competitive rates in your area",
-    emoji: "💰",
+    iconSrc: "/icons/CurrencyDollarSimple.svg",
   },
 ];
 
@@ -131,8 +132,15 @@ export default function HowItWorks() {
               variants={itemVariants}
               className="rounded-xl border border-black/[.08] bg-white p-5 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
             >
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#fff5ee] text-2xl">
-                {s.emoji}
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#fff5ee]">
+                <Image
+                  src={s.iconSrc}
+                  alt=""
+                  width={24}
+                  height={24}
+                  className="h-6 w-6"
+                  aria-hidden="true"
+                />
               </div>
               <p className="text-xs uppercase tracking-wide text-[#ff6a00]">
                 Step {idx + 1}

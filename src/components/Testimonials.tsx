@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion, Variants } from "framer-motion";
 
 const testimonials = [
@@ -8,16 +9,19 @@ const testimonials = [
     name: "Marie Claire Uwimana",
     role: "Homeowner",
     text: "Found an amazing electrician through Shaka who fixed our kitchen wiring quickly and professionally. The booking process was so easy!",
+    avatarSrc: "/images/mc.png",
   },
   {
     name: "Jean Paul Niyonzima",
     role: "Plumber",
     text: "As a service provider, Shaka has helped me grow my business significantly. Great platform with genuine customers and fair pricing.",
+    avatarSrc: "/images/JP.png",
   },
   {
     name: "Claudine Uwimana",
     role: "Homeowner",
     text: "The gardener I hired through Shaka transformed our backyard completely. Highly recommend for anyone looking for quality services.",
+    avatarSrc: "/images/CL.png",
   },
 ];
 
@@ -83,7 +87,15 @@ export default function Testimonials() {
                 {t.text}
               </blockquote>
               <figcaption className="mt-4 flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-black/10" />
+                <div className="relative h-8 w-8 rounded-full overflow-hidden">
+                  <Image
+                    src={t.avatarSrc}
+                    alt={t.name}
+                    fill
+                    sizes="32px"
+                    className="object-cover"
+                  />
+                </div>
                 <div>
                   <p className="text-sm font-medium text-black">{t.name}</p>
                   <p className="text-xs text-black/60">{t.role}</p>
