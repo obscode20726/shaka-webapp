@@ -1,3 +1,6 @@
+"use client";
+
+import React from "react";
 import {
   BriefcaseIcon,
   CheckCircleIcon,
@@ -6,20 +9,67 @@ import {
   UserCheckIcon,
   XCircleIcon,
 } from "./AdminIcons";
-import type React from "react";
 import type { ProviderApproval } from "./types";
+import { approveProvider, rejectProvider } from "@/lib/api";
 
 type Props = {
   providers: ProviderApproval[];
+  onRefresh?: () => void;
 };
 
-export default function ProviderApprovalsTab({ providers }: Props) {
+export default function ProviderApprovalsTab({ providers, onRefresh }: Props) {
+  const [approving, setApproving] = React.useState<Set<string>>(new Set());
+  const [rejecting, setRejecting] = React.useState<Set<string>>(new Set());
+  const [error, setError] = React.useState<string | null>(null);
+
+  const handleApprove = async (providerId: string) => {
+    try {
+      setApproving((prev) => new Set(prev).add(providerId));
+      setError(null);
+      await approveProvider(providerId);
+      onRefresh?.();
+    } catch (err) {
+      console.error("[ProviderApprovals] Failed to approve provider:", err);
+      setError(err instanceof Error ? err.message : "Failed to approve provider");
+    } finally {
+      setApproving((prev) => {
+        const next = new Set(prev);
+        next.delete(providerId);
+        return next;
+      });
+    }
+  };
+
+  const handleReject = async (providerId: string) => {
+    try {
+      setRejecting((prev) => new Set(prev).add(providerId));
+      setError(null);
+      await rejectProvider(providerId);
+      onRefresh?.();
+    } catch (err) {
+      console.error("[ProviderApprovals] Failed to reject provider:", err);
+      setError(err instanceof Error ? err.message : "Failed to reject provider");
+    } finally {
+      setRejecting((prev) => {
+        const next = new Set(prev);
+        next.delete(providerId);
+        return next;
+      });
+    }
+  };
+
   return (
     <section className="mt-8 rounded-xl border border-[#d9d9df] bg-white p-6">
       <h2 className="flex items-center gap-2 text-base font-medium text-black">
         <UserCheckIcon className="h-5 w-5 text-[#ff5f00]" />
         Pending Provider Approvals ({providers.length})
       </h2>
+
+      {error && (
+        <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
+          {error}
+        </div>
+      )}
 
       <div className="mt-7 space-y-4">
         {providers.map((provider) => (
@@ -62,13 +112,39 @@ export default function ProviderApprovalsTab({ providers }: Props) {
             </p>
 
             <div className="mt-4 grid gap-2 md:grid-cols-[1fr_1fr_130px]">
-              <button className="inline-flex h-8 items-center justify-center gap-3 rounded-md bg-[#00a63e] text-sm font-medium text-white hover:bg-[#008a34]">
-                <CheckCircleIcon className="h-4 w-4" />
-                Approve Provider
+              <button
+                onClick={() => handleApprove(provider.id)}
+                disabled={approving.has(provider.id) || rejecting.has(provider.id)}
+                className="inline-flex h-8 items-center justify-center gap-3 rounded-md bg-[#00a63e] text-sm font-medium text-white hover:bg-[#008a34] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {approving.has(provider.id) ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Approving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircleIcon className="h-4 w-4" />
+                    Approve Provider
+                  </>
+                )}
               </button>
-              <button className="inline-flex h-8 items-center justify-center gap-3 rounded-md border border-[#ff6467] bg-white text-sm font-medium text-[#fb2c36] hover:bg-red-50">
-                <XCircleIcon className="h-4 w-4" />
-                Reject
+              <button
+                onClick={() => handleReject(provider.id)}
+                disabled={approving.has(provider.id) || rejecting.has(provider.id)}
+                className="inline-flex h-8 items-center justify-center gap-3 rounded-md border border-[#ff6467] bg-white text-sm font-medium text-[#fb2c36] hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {rejecting.has(provider.id) ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#fb2c36] border-t-transparent" />
+                    Rejecting...
+                  </>
+                ) : (
+                  <>
+                    <XCircleIcon className="h-4 w-4" />
+                    Reject
+                  </>
+                )}
               </button>
               <button className="h-8 rounded-md border border-[#d9d9df] bg-white px-3 text-sm font-medium text-black hover:bg-black/[.02]">
                 View Full Profile

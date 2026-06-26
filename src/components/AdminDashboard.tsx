@@ -54,46 +54,52 @@ export default function AdminDashboard() {
   const [topProviders, setTopProviders] = React.useState<AdminProvider[]>([]);
   const [disputes, setDisputes] = React.useState<AdminDispute[]>([]);
 
+  const refreshDashboardData = React.useCallback(async () => {
+    try {
+      setError(null);
+
+      const [
+        summaryData,
+        platformData,
+        bookingsData,
+        approvalsData,
+        customersData,
+        providersData,
+        disputesData,
+      ] = await Promise.all([
+        fetchAdminSummaryStats(),
+        fetchAdminPlatformStats(),
+        fetchAdminRecentBookings(),
+        fetchProviderApprovals(),
+        fetchAdminCustomers(),
+        fetchAdminProviders(),
+        fetchAdminDisputes(),
+      ]);
+
+      setSummaryStats(summaryData);
+      setPlatformStats(platformData);
+      setRecentBookings(bookingsData);
+      setProviderApprovals(approvalsData);
+      setRecentCustomers(customersData);
+      setTopProviders(providersData);
+      setDisputes(disputesData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+    }
+  }, []);
+
   React.useEffect(() => {
     async function fetchDashboardData() {
       try {
         setLoading(true);
-        setError(null);
-
-        const [
-          summaryData,
-          platformData,
-          bookingsData,
-          approvalsData,
-          customersData,
-          providersData,
-          disputesData,
-        ] = await Promise.all([
-          fetchAdminSummaryStats(),
-          fetchAdminPlatformStats(),
-          fetchAdminRecentBookings(),
-          fetchProviderApprovals(),
-          fetchAdminCustomers(),
-          fetchAdminProviders(),
-          fetchAdminDisputes(),
-        ]);
-
-        setSummaryStats(summaryData);
-        setPlatformStats(platformData);
-        setRecentBookings(bookingsData);
-        setProviderApprovals(approvalsData);
-        setRecentCustomers(customersData);
-        setTopProviders(providersData);
-        setDisputes(disputesData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+        await refreshDashboardData();
       } finally {
         setLoading(false);
       }
     }
 
     fetchDashboardData();
-  }, []);
+  }, [refreshDashboardData]);
 
   const adminTabs: Array<{
     name: AdminTabName;
@@ -164,7 +170,7 @@ export default function AdminDashboard() {
         {activeTab === "Overview" ? (
           <OverviewTab bookings={recentBookings} stats={platformStats} />
         ) : activeTab === "Provider Approvals" ? (
-          <ProviderApprovalsTab providers={providerApprovals} />
+          <ProviderApprovalsTab providers={providerApprovals} onRefresh={refreshDashboardData} />
         ) : activeTab === "All Bookings" ? (
           <AllBookingsTab bookings={recentBookings} />
         ) : activeTab === "Users" ? (

@@ -2846,37 +2846,68 @@ export const fetchAdminRecentBookings = async (): Promise<RecentBooking[]> => {
 
 
 export const fetchProviderApprovals = async (): Promise<ProviderApproval[]> => {
-
-
-
   try {
+    const response = await apiRequest<unknown>("/users/providers/approvals");
+    const approvals = unwrapArrayResponse(response);
 
+    return approvals
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
 
+        const record = item as Record<string, unknown>;
+        const id = readId(record.id) ?? readId(record._id);
+        if (!id) return null;
 
-    await apiRequest<unknown[]>("/providers");
+        const providerApprovalStatus = readString(record.providerApprovalStatus);
+        if (providerApprovalStatus !== "pending") return null;
 
+        const firstName = readString(record.firstName);
+        const lastName = readString(record.lastName);
+        const businessName = readString(record.businessName);
+        const name =
+          [firstName, lastName].filter(Boolean).join(" ") || businessName || "Unknown";
 
+        const primaryService = readString(record.primaryService) || "General";
 
+        const user = record.user as Record<string, unknown> | undefined;
+        const phone = readString(user?.phone) || readString(record.phone) || readString(record.contactPhone) || "N/A";
 
+        const serviceArea = readString(record.serviceArea) || "N/A";
+        const yearsExperience =
+          typeof record.yearsExperience === "number" ? record.yearsExperience : 0;
 
+        const createdAt = readString(record.createdAt) || readString(record.created_at);
+        const appliedDate = createdAt ? new Date(createdAt).toLocaleDateString() : "Unknown";
 
-
+        return {
+          id,
+          name,
+          service: primaryService,
+          phone,
+          location: serviceArea,
+          yearsExperience,
+          appliedDate,
+        };
+      })
+      .filter((item): item is ProviderApproval => item !== null);
+  } catch (error) {
+    console.error("[API] Failed to fetch provider approvals:", error);
     return [];
-
-
-
-  } catch {
-
-
-
-    return [];
-
-
-
   }
+};
 
+export const approveProvider = async (id: string): Promise<void> => {
+  await apiRequest(`/users/providers/approvals/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ providerApprovalStatus: "approved" }),
+  });
+};
 
-
+export const rejectProvider = async (id: string): Promise<void> => {
+  await apiRequest(`/users/providers/approvals/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ providerApprovalStatus: "rejected" }),
+  });
 };
 
 
