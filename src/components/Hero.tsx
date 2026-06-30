@@ -2,38 +2,21 @@
 
 import React from "react";
 import { motion, Variants } from "framer-motion";
+import {
+  heroContainerVariants,
+  heroTextVariants,
+  heroButtonVariants,
+  buttonHoverVariants,
+} from "@/lib/animations/variants";
 
 export default function Hero() {
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.15,
-        delayChildren: 0.2,
-      },
-    },
-  };
-
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: [0.22, 1, 0.36, 1] as const,
-      },
-    },
-  };
-
   const trustIndicatorVariants: Variants = {
-    hidden: { opacity: 0, scale: 0.8 },
+    hidden: { opacity: 0, scale: 0.9 },
     visible: {
       opacity: 1,
       scale: 1,
       transition: {
-        duration: 0.5,
+        duration: 0.6,
         ease: [0.22, 1, 0.36, 1] as const,
       },
     },
@@ -48,13 +31,13 @@ export default function Hero() {
     >
       <motion.div
         className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8 py-14 sm:py-20"
-        variants={containerVariants}
+        variants={heroContainerVariants}
         initial="hidden"
         animate="visible"
       >
         <div className="text-center max-w-[860px] mx-auto">
           <motion.h1
-            variants={itemVariants}
+            variants={heroTextVariants}
             className="text-[36px] sm:text-[32px] md:text-[44px] leading-[1.2] sm:leading-[1.15] font-semibold tracking-tight text-black"
           >
             <span className="block sm:hidden">Connect with</span>
@@ -86,7 +69,7 @@ export default function Hero() {
           </motion.h1>
 
           <motion.p
-            variants={itemVariants}
+            variants={heroTextVariants}
             className="mt-6 sm:mt-4 text-black/70 text-sm sm:text-base leading-relaxed max-w-[320px] sm:max-w-none mx-auto"
           >
             From electricians to cleaners, find skilled professionals for all
@@ -94,28 +77,30 @@ export default function Hero() {
           </motion.p>
 
           <motion.div
-            variants={itemVariants}
+            variants={heroButtonVariants}
             className="mt-8 sm:mt-6 flex items-center justify-center gap-2 sm:gap-3"
           >
             <motion.button
               className="h-10 px-4 sm:px-5 rounded-lg sm:rounded-md bg-[#ff6a00] text-white text-sm font-medium hover:brightness-95"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              variants={buttonHoverVariants}
+              whileHover="hover"
+              whileTap="tap"
             >
               Find Services
             </motion.button>
 
             <motion.button
               className="h-10 px-4 sm:px-5 rounded-lg sm:rounded-md bg-white border border-black/10 text-sm font-medium text-black hover:bg-black/[.04]"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              variants={buttonHoverVariants}
+              whileHover="hover"
+              whileTap="tap"
             >
               Join as Provider
             </motion.button>
           </motion.div>
 
           <motion.div
-            variants={itemVariants}
+            variants={heroTextVariants}
             className="mt-8 sm:mt-6 flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-black/60"
           >
             <motion.div
