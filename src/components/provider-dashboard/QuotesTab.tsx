@@ -34,7 +34,7 @@ export default function QuotesTab({ requests, statsLoading }: Props) {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-[28px] font-medium leading-none text-black sm:text-[30px]">
+                    <h3 className="text-lg font-medium text-black">
                       {request.service?.title || "Service"}
                     </h3>
                     <span className="rounded-full bg-[#fff4cf] px-2 py-0.5 text-xs text-[#987303]">

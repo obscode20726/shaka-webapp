@@ -283,6 +283,22 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
       }
     }
     if (step === 4) {
+      if (!form.date) {
+        setError("Please select a date.");
+        return;
+      }
+      if (!form.time) {
+        setError("Please select a time.");
+        return;
+      }
+      if (!form.fullName) {
+        setError("Please enter your full name.");
+        return;
+      }
+      if (!form.email) {
+        setError("Please enter your email address.");
+        return;
+      }
       if (!isValidRwandanMobile(form.phone)) {
         setError("Enter a valid Rwandan phone number (e.g. 0781234567).");
         return;
@@ -452,6 +468,73 @@ function LocationStep({
   form: BookingForm;
   update: (key: keyof BookingForm, value: string) => void;
 }) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  const locationGroups = [
+    {
+      label: "Kigali City - Gasabo District",
+      locations: [
+        "Bumbogo", "Gatsata", "Gikomero", "Gisozi", "Jabana", "Jali",
+        "Kacyiru", "Kimihurura", "Kimironko", "Kinyinya", "Ndera",
+        "Nduba", "Remera", "Rusororo", "Rutunga"
+      ]
+    },
+    {
+      label: "Kigali City - Kicukiro District",
+      locations: [
+        "Gahanga", "Gatenga", "Gikondo", "Kagarama", "Kanombe",
+        "Kicukiro", "Kigarama", "Masaka", "Niboye", "Nyarugunga"
+      ]
+    },
+    {
+      label: "Kigali City - Nyarugenge District",
+      locations: [
+        "Gitega", "Kanyinya", "Kigali", "Kimisagara", "Mageragere",
+        "Muhima", "Nyakabanda", "Nyamirambo", "Nyarugenge", "Rwezamenyo"
+      ]
+    },
+    {
+      label: "Eastern Province",
+      locations: ["Bugesera", "Gatsibo", "Kayonza", "Kirehe", "Ngoma", "Nyagatare", "Rwamagana"]
+    },
+    {
+      label: "Northern Province",
+      locations: ["Burera", "Gakenke", "Gicumbi", "Musanze", "Rulindo"]
+    },
+    {
+      label: "Southern Province",
+      locations: ["Gisagara", "Huye", "Kamonyi", "Muhanga", "Nyamagabe", "Nyanza", "Nyaruguru", "Ruhango"]
+    },
+    {
+      label: "Western Province",
+      locations: ["Karongi", "Ngororero", "Nyabihu", "Nyamasheke", "Rubavu", "Rusizi", "Rutsiro"]
+    }
+  ];
+
+  const filteredGroups = locationGroups.map(group => ({
+    ...group,
+    locations: group.locations.filter(loc =>
+      loc.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      group.label.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  })).filter(group => group.locations.length > 0);
+
+  const selectedLocation = locationGroups
+    .flatMap(g => g.locations)
+    .find(loc => loc === form.city);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <Panel>
       <h1 className="text-2xl font-semibold text-black">
@@ -464,16 +547,86 @@ function LocationStep({
       <div className="mt-7 space-y-4">
         <label className="block">
           <span className="text-sm font-medium text-black">Service Location</span>
-          <select
-            value={form.city}
-            onChange={(event) => update("city", event.target.value)}
-            className="mt-1 w-full rounded-lg border-0 bg-[#f0f0f2] px-3 py-2.5 text-sm text-black/80 outline-none"
-          >
-            <option value="">Select your city</option>
-            <option value="Nyarugenge">Nyarugenge</option>
-            <option value="Gasabo">Gasabo</option>
-            <option value="Kicukiro">Kicukiro</option>
-          </select>
+          <div ref={dropdownRef} className="relative mt-1">
+            <button
+              type="button"
+              onClick={() => setIsOpen(!isOpen)}
+              className="flex w-full items-center justify-between rounded-lg border border-black/10 bg-white px-4 py-3 text-left text-sm text-black/80 shadow-sm hover:border-black/20 focus:outline-none focus:ring-2 focus:ring-[#ff5f00] focus:ring-offset-2"
+            >
+              <span className={form.city ? "text-black" : "text-black/40"}>
+                {selectedLocation || "Select your location"}
+              </span>
+              <svg
+                className={`h-5 w-5 text-black/40 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {isOpen && (
+              <div className="absolute z-50 mt-2 max-h-[400px] w-full overflow-y-auto rounded-xl border border-black/10 bg-white shadow-xl">
+                <div className="sticky top-0 z-10 border-b border-black/5 bg-white p-3">
+                  <div className="relative">
+                    <svg
+                      className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/40"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Search location..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full rounded-lg border border-black/10 bg-[#f8f9fa] py-2.5 pl-10 pr-4 text-sm text-black outline-none placeholder:text-black/40 focus:border-[#ff5f00] focus:ring-1 focus:ring-[#ff5f00]"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-2">
+                  {filteredGroups.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-black/60">No locations found</p>
+                  ) : (
+                    filteredGroups.map((group) => (
+                      <div key={group.label} className="mb-2 last:mb-0">
+                        <div className="px-3 py-2 text-xs font-semibold text-black/50 uppercase tracking-wide">
+                          {group.label}
+                        </div>
+                        {group.locations.map((location) => (
+                          <button
+                            key={location}
+                            type="button"
+                            onClick={() => {
+                              update("city", location);
+                              setIsOpen(false);
+                              setSearchQuery("");
+                            }}
+                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm transition ${
+                              form.city === location
+                                ? "bg-[#ff5f00]/10 text-[#ff5f00]"
+                                : "text-black/80 hover:bg-black/5"
+                            }`}
+                          >
+                            <span>{location}</span>
+                            {form.city === location && (
+                              <svg className="h-4 w-4 text-[#ff5f00]" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </label>
 
         <label className="block">
@@ -484,7 +637,7 @@ function LocationStep({
             value={form.address}
             onChange={(event) => update("address", event.target.value)}
             placeholder="Enter your street address"
-            className="mt-1 w-full rounded-lg border-0 bg-[#f0f0f2] px-3 py-2.5 text-sm outline-none placeholder:text-black/40"
+            className="mt-1 w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-sm outline-none placeholder:text-black/40 focus:border-[#ff5f00] focus:ring-2 focus:ring-[#ff5f00] focus:ring-offset-2"
           />
         </label>
       </div>

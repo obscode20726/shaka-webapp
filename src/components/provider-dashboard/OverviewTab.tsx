@@ -30,7 +30,7 @@ export default function OverviewTab({
           ) : (
             recentActivity.map((item) => (
               <article
-                key={`${item.customer}-${item.amount}`}
+                key={item.id}
                 className="flex items-center justify-between rounded-xl border border-black/10 bg-white px-3 py-3"
               >
                 <div className="flex items-center gap-3">

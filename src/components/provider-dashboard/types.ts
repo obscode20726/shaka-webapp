@@ -49,6 +49,7 @@ export type Booking = {
 };
 
 export type RecentActivityItem = {
+  id: string;
   customer: string;
   service: string;
   amount: string;

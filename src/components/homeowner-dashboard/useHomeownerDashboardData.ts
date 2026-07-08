@@ -71,11 +71,14 @@ export function useHomeownerDashboardData() {
         try {
           serviceRequests = (await fetchServiceRequests()) as ServiceRequest[];
         } catch (err) {
-          console.error("Unable to load service requests:", err);
+          // Unable to load service requests
         }
 
         const upcomingRequests = serviceRequests.filter(
           (request) => normalizeRequestStatus(request.status) === "pending",
+        );
+        const upcomingBookings = bookings.filter(
+          (booking) => normalizeRequestStatus(booking.escrowStatus) === "pending",
         );
         const inProgressRequests = serviceRequests.filter((request) => {
           const status = normalizeRequestStatus(request.status);
@@ -93,7 +96,7 @@ export function useHomeownerDashboardData() {
             setBookings(response as Booking[]);
           }
         } catch (err) {
-          console.error("Unable to load bookings:", err);
+          // Unable to load bookings
         }
 
         try {
@@ -109,18 +112,18 @@ export function useHomeownerDashboardData() {
             setPayments(typedPayments);
           }
         } catch (err) {
-          console.error("Unable to load payments:", err);
+          // Unable to load payments
         }
 
         setStats({
-          upcoming: upcomingRequests.length,
+          upcoming: upcomingBookings.length,
           inProgress: inProgressRequests.length,
           completed: completedRequests.length,
           totalSpent,
         });
         setRequests(serviceRequests);
       } catch (err: unknown) {
-        console.error("Error fetching homeowner dashboard data:", err);
+        // Error fetching homeowner dashboard data
       } finally {
         setStatsLoading(false);
       }

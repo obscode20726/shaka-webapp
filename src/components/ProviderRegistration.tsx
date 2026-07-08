@@ -1,13 +1,171 @@
 "use client";
 
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { apiRequest, type AuthTokenResponse } from "@/lib/api";
 // import SignupOtpVerification from "@/components/SignupOtpVerification";
 import {
   isValidRwandanMobile,
   normalizeRwandanMobileDigits,
 } from "@/lib/phone";
+
+function LocationDropdown({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const locationGroups = [
+    {
+      label: "Kigali City - Gasabo District",
+      locations: [
+        "Bumbogo", "Gatsata", "Gikomero", "Gisozi", "Jabana", "Jali",
+        "Kacyiru", "Kimihurura", "Kimironko", "Kinyinya", "Ndera",
+        "Nduba", "Remera", "Rusororo", "Rutunga"
+      ]
+    },
+    {
+      label: "Kigali City - Kicukiro District",
+      locations: [
+        "Gahanga", "Gatenga", "Gikondo", "Kagarama", "Kanombe",
+        "Kicukiro", "Kigarama", "Masaka", "Niboye", "Nyarugunga"
+      ]
+    },
+    {
+      label: "Kigali City - Nyarugenge District",
+      locations: [
+        "Gitega", "Kanyinya", "Kigali", "Kimisagara", "Mageragere",
+        "Muhima", "Nyakabanda", "Nyamirambo", "Nyarugenge", "Rwezamenyo"
+      ]
+    },
+    {
+      label: "Eastern Province",
+      locations: ["Bugesera", "Gatsibo", "Kayonza", "Kirehe", "Ngoma", "Nyagatare", "Rwamagana"]
+    },
+    {
+      label: "Northern Province",
+      locations: ["Burera", "Gakenke", "Gicumbi", "Musanze", "Rulindo"]
+    },
+    {
+      label: "Southern Province",
+      locations: ["Gisagara", "Huye", "Kamonyi", "Muhanga", "Nyamagabe", "Nyanza", "Nyaruguru", "Ruhango"]
+    },
+    {
+      label: "Western Province",
+      locations: ["Karongi", "Ngororero", "Nyabihu", "Nyamasheke", "Rubavu", "Rusizi", "Rutsiro"]
+    }
+  ];
+
+  const filteredGroups = locationGroups.map(group => ({
+    ...group,
+    locations: group.locations.filter(loc =>
+      loc.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      group.label.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  })).filter(group => group.locations.length > 0);
+
+  const selectedLocation = locationGroups
+    .flatMap(g => g.locations)
+    .find(loc => loc === value);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-center justify-between rounded-lg border border-black/15 bg-white px-3 py-2.5 text-left text-sm text-black/80 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
+      >
+        <span className={value ? "text-black" : "text-black/40"}>
+          {selectedLocation || "Select your service area"}
+        </span>
+        <svg
+          className={`h-5 w-5 text-black/40 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 mt-2 max-h-[400px] w-full overflow-y-auto rounded-xl border border-black/10 bg-white shadow-xl">
+          <div className="sticky top-0 z-10 border-b border-black/5 bg-white p-3">
+            <div className="relative">
+              <svg
+                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/40"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search location..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-black/10 bg-[#f8f9fa] py-2.5 pl-10 pr-4 text-sm text-black outline-none placeholder:text-black/40 focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+              />
+            </div>
+          </div>
+
+          <div className="p-2">
+            {filteredGroups.length === 0 ? (
+              <p className="py-8 text-center text-sm text-black/60">No locations found</p>
+            ) : (
+              filteredGroups.map((group) => (
+                <div key={group.label} className="mb-2 last:mb-0">
+                  <div className="px-3 py-2 text-xs font-semibold text-black/50 uppercase tracking-wide">
+                    {group.label}
+                  </div>
+                  {group.locations.map((location) => (
+                    <button
+                      key={location}
+                      type="button"
+                      onClick={() => {
+                        onChange(location);
+                        setIsOpen(false);
+                        setSearchQuery("");
+                      }}
+                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm transition ${
+                        value === location
+                          ? "bg-[#ff6a00]/10 text-[#ff6a00]"
+                          : "text-black/80 hover:bg-black/5"
+                      }`}
+                    >
+                      <span>{location}</span>
+                      {value === location && (
+                        <svg className="h-4 w-4 text-[#ff6a00]" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -561,12 +719,9 @@ export default function ProviderRegistration() {
                 <label className="block text-sm font-medium text-black mb-1">
                   Service Area
                 </label>
-                <input
-                  type="text"
-                  placeholder="Enter your service area (e.g., Kigali)"
+                <LocationDropdown
                   value={form.serviceArea}
-                  onChange={(e) => update("serviceArea", e.target.value)}
-                  className="w-full rounded-lg border border-black/15 bg-white px-3 py-2.5 text-sm placeholder:text-black/40 focus:border-[#ff6a00] focus:outline-none focus:ring-1 focus:ring-[#ff6a00]"
+                  onChange={(value) => update("serviceArea", value)}
                 />
               </div>
 

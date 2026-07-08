@@ -193,9 +193,20 @@ export function useProviderDashboardData() {
             (await fetchServiceRequestsForProvider()) as ServiceRequest[];
 
         } catch (err) {
-
-          console.error("Unable to load service requests:", err);
-
+          const message =
+            err instanceof Error ? err.message : "Unable to load service requests";
+          const lowerMessage = message.toLowerCase();
+          if (
+            lowerMessage.includes("unauthorized") ||
+            lowerMessage.includes("token") ||
+            lowerMessage.includes("forbidden")
+          ) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            document.cookie =
+              "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            window.location.href = "/signin/provider";
+          }
         }
 
 
@@ -234,8 +245,6 @@ export function useProviderDashboardData() {
 
           const typedBookings = unwrapArrayResponse<Booking>(response);
 
-          console.log("DEBUG: Fetched bookings:", typedBookings);
-
           if (typedBookings.length > 0) {
 
             const now = new Date();
@@ -257,9 +266,20 @@ export function useProviderDashboardData() {
           }
 
         } catch (err) {
-
-          console.error("Unable to load bookings:", err);
-
+          const message =
+            err instanceof Error ? err.message : "Unable to load bookings";
+          const lowerMessage = message.toLowerCase();
+          if (
+            lowerMessage.includes("unauthorized") ||
+            lowerMessage.includes("token") ||
+            lowerMessage.includes("forbidden")
+          ) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            document.cookie =
+              "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            window.location.href = "/signin/provider";
+          }
         }
 
         let monthlyEarnings = 0;
@@ -271,15 +291,11 @@ export function useProviderDashboardData() {
         try {
           const response = await apiRequest("/bookings");
           const typedBookings = unwrapArrayResponse<Booking>(response);
-          console.log("DEBUG: Bookings for earnings calculation:", typedBookings);
           
           if (typedBookings.length > 0) {
             const now = new Date();
             const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             const currentYear = now.getFullYear();
-            console.log("DEBUG: Current date:", now);
-            console.log("DEBUG: Last month date:", lastMonth);
-            console.log("DEBUG: Current year:", currentYear);
             
             monthlyEarnings = typedBookings.reduce((sum: number, booking: Booking) => {
               if (!booking.amount) return sum;
@@ -287,13 +303,6 @@ export function useProviderDashboardData() {
               const isCurrentMonth =
                 bookingDate.getMonth() === now.getMonth() &&
                 bookingDate.getFullYear() === now.getFullYear();
-              
-              console.log("DEBUG: Processing booking for this month:", {
-                id: booking.id,
-                amount: booking.amount,
-                scheduledAt: booking.scheduledAt,
-                isCurrentMonth
-              });
               
               return isCurrentMonth ? sum + booking.amount : sum;
             }, 0);
@@ -305,13 +314,6 @@ export function useProviderDashboardData() {
                 bookingDate.getMonth() === lastMonth.getMonth() &&
                 bookingDate.getFullYear() === lastMonth.getFullYear();
               
-              console.log("DEBUG: Processing booking for last month:", {
-                id: booking.id,
-                amount: booking.amount,
-                scheduledAt: booking.scheduledAt,
-                isLastMonth
-              });
-              
               return isLastMonth ? sum + booking.amount : sum;
             }, 0);
             
@@ -320,13 +322,6 @@ export function useProviderDashboardData() {
               const bookingDate = new Date(booking.scheduledAt);
               const isCurrentYear = bookingDate.getFullYear() === currentYear;
               
-              console.log("DEBUG: Processing booking for year to date:", {
-                id: booking.id,
-                amount: booking.amount,
-                scheduledAt: booking.scheduledAt,
-                isCurrentYear
-              });
-              
               return isCurrentYear ? sum + booking.amount : sum;
             }, 0);
             
@@ -334,14 +329,22 @@ export function useProviderDashboardData() {
             const bookingsWithAmounts = typedBookings.filter((booking) => booking.amount && booking.amount > 0);
             const totalAmount = bookingsWithAmounts.reduce((sum: number, booking: Booking) => sum + (booking.amount || 0), 0);
             averageJobValue = bookingsWithAmounts.length > 0 ? totalAmount / bookingsWithAmounts.length : 0;
-            
-            console.log("DEBUG: Calculated monthlyEarnings:", monthlyEarnings);
-            console.log("DEBUG: Calculated lastMonthEarnings:", lastMonthEarnings);
-            console.log("DEBUG: Calculated yearToDateEarnings:", yearToDateEarnings);
-            console.log("DEBUG: Calculated averageJobValue:", averageJobValue);
           }
         } catch (err) {
-          console.error("Unable to calculate monthly earnings:", err);
+          const message =
+            err instanceof Error ? err.message : "Unable to calculate monthly earnings";
+          const lowerMessage = message.toLowerCase();
+          if (
+            lowerMessage.includes("unauthorized") ||
+            lowerMessage.includes("token") ||
+            lowerMessage.includes("forbidden")
+          ) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            document.cookie =
+              "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            window.location.href = "/signin/provider";
+          }
         }
 
 
@@ -398,37 +401,30 @@ export function useProviderDashboardData() {
 
         });
 
-        console.log("DEBUG: Final stats set:", {
-          newRequests: pendingRequests.length,
-          upcomingJobs: providerStats?.upcoming_jobs_count ?? upcomingJobs,
-          monthlyEarnings: providerStats?.revenue_this_month ?? monthlyEarnings,
-          rating: providerStats?.average_rating ?? 0,
-          jobsCompleted: providerStats?.total_bookings ?? jobsCompleted,
-          responseRate: `${responseRate}%`
-        });
-
         setRequests(serviceRequests);
 
         setRecentActivity(
 
-          completedRequests.slice(0, 3).map((request) => ({
-
-            customer: parseHomeownerName(request.homeowner),
-
-            service: request.service?.title || "Service",
-
-            amount: "$0",
-
-            status: "completed" as const,
-
-          })),
+          completedRequests.slice(0, 3).map((request) => {
+            const matchingBooking = bookings.find(
+              (booking) => booking.serviceRequest?.id === request.id
+            );
+            const amount = matchingBooking?.amount
+              ? `$${matchingBooking.amount.toFixed(2)}`
+              : "Amount pending";
+            return {
+              id: request.id,
+              customer: parseHomeownerName(request.homeowner),
+              service: request.service?.title || "Service",
+              amount,
+              status: "completed" as const,
+            };
+          }),
 
         );
 
       } catch (err: unknown) {
-
-        console.error("Error fetching provider dashboard data:", err);
-
+        // Error fetching provider dashboard data
       } finally {
 
         setStatsLoading(false);

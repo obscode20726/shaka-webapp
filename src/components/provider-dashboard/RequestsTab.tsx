@@ -105,6 +105,11 @@ function NewRequestCard({
   const phone = request.homeowner?.contactPhone?.trim();
   const rating = request.homeowner?.averageRating;
 
+  const handleMessage = () => {
+    // Navigate to messaging interface for this customer
+    window.location.href = `/messages?requestId=${request.id}`;
+  };
+
   return (
     <article className="rounded-[9px] border border-black/10 bg-white p-4 sm:px-4 sm:py-5">
       <div className="flex flex-col gap-4">
@@ -161,6 +166,7 @@ function NewRequestCard({
           </button>
           <button
             type="button"
+            onClick={handleMessage}
             className="inline-flex h-8 items-center gap-2 rounded-lg border border-black/10 bg-white px-3 text-sm font-medium text-black hover:bg-black/[.02]"
           >
             <MessageIcon />
@@ -201,6 +207,24 @@ function AcceptedRequestCard({ request }: { request: ServiceRequest }) {
   const customerName = parseHomeownerName(request.homeowner);
   const serviceTitle = request.service?.title || "Service";
   const statusLabel = formatAcceptedStatus(request.status);
+  const location = formatRequestLocation(request);
+
+  const handleMessageCustomer = () => {
+    // Navigate to messaging interface for this customer
+    window.location.href = `/messages?requestId=${request.id}`;
+  };
+
+  const handleStartJob = () => {
+    // Update request status to in-progress
+    // This would typically call an API endpoint to update the status
+    alert(`Starting job for ${customerName}`);
+  };
+
+  const handleGetDirections = () => {
+    // Open Google Maps with the address
+    const query = encodeURIComponent(location);
+    window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+  };
 
   return (
     <article className="rounded-[9px] border border-[#cfdff2] bg-[#eef6ff] p-4">
@@ -223,6 +247,7 @@ function AcceptedRequestCard({ request }: { request: ServiceRequest }) {
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
+          onClick={handleMessageCustomer}
           className="inline-flex h-8 items-center gap-2 rounded-lg bg-[#020013] px-4 text-sm font-medium text-white hover:bg-black"
         >
           <MessageIcon />
@@ -230,12 +255,14 @@ function AcceptedRequestCard({ request }: { request: ServiceRequest }) {
         </button>
         <button
           type="button"
+          onClick={handleStartJob}
           className="inline-flex h-8 items-center rounded-lg border border-black/10 bg-white px-4 text-sm font-medium text-black hover:bg-black/[.02]"
         >
           Start Job
         </button>
         <button
           type="button"
+          onClick={handleGetDirections}
           className="inline-flex h-8 items-center rounded-lg border border-black/10 bg-white px-4 text-sm font-medium text-black hover:bg-black/[.02]"
         >
           Get Directions
