@@ -170,7 +170,7 @@ function NewRequestCard({
             className="inline-flex h-8 items-center gap-2 rounded-lg border border-black/10 bg-white px-3 text-sm font-medium text-black hover:bg-black/[.02]"
           >
             <MessageIcon />
-            Message
+            Message {customerName}
           </button>
           {phone ? (
             <a
@@ -251,7 +251,7 @@ function AcceptedRequestCard({ request }: { request: ServiceRequest }) {
           className="inline-flex h-8 items-center gap-2 rounded-lg bg-[#020013] px-4 text-sm font-medium text-white hover:bg-black"
         >
           <MessageIcon />
-          Message Customer
+          Message {customerName}
         </button>
         <button
           type="button"

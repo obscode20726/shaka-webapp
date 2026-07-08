@@ -407,7 +407,7 @@ export function useProviderDashboardData() {
 
           completedRequests.slice(0, 3).map((request) => {
             const matchingBooking = bookings.find(
-              (booking) => booking.serviceRequest?.id === request.id
+              (booking) => booking.serviceRequestId === request.id
             );
             const amount = matchingBooking?.amount
               ? `$${matchingBooking.amount.toFixed(2)}`

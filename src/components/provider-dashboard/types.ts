@@ -46,6 +46,7 @@ export type Booking = {
   scheduledAt: string;
   escrowStatus: string;
   amount?: number;
+  serviceRequestId?: string;
 };
 
 export type RecentActivityItem = {
