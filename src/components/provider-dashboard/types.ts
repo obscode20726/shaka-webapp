@@ -37,7 +37,11 @@ export type ServiceRequest = {
     firstName?: string;
     lastName?: string;
     contactPhone?: string;
+    phone?: string;
     averageRating?: number;
+    user?: {
+      phone?: string;
+    };
   };
 };
 

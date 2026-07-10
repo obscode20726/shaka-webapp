@@ -1,5 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { ProviderProfile } from "./types";
+import { uploadProfilePicture, uploadPortfolioImage, fetchPaymentMethods, addPaymentMethod, deletePaymentMethod, setDefaultPaymentMethod, type AddPaymentMethodPayload, type PaymentMethod } from "@/lib/api";
 
 type Props = {
   loading: boolean;
@@ -15,10 +16,100 @@ export default function ProfileTab({ loading, profile }: Props) {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isUploadingProfile, setIsUploadingProfile] = useState(false);
+  const [isUploadingPortfolio, setIsUploadingPortfolio] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
+  const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
+  const [newPaymentType, setNewPaymentType] = useState<"mobile_money" | "bank_account" | "card">("mobile_money");
+  const [newPaymentProvider, setNewPaymentProvider] = useState("");
+  const [newPaymentAccountNumber, setNewPaymentAccountNumber] = useState("");
+  const [newPaymentAccountName, setNewPaymentAccountName] = useState("");
+  const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  const handleProfileImageChange = (file: File) => {
-    const url = URL.createObjectURL(file);
-    setProfileImage(url);
+  useEffect(() => {
+    if (activeTab === "payment") {
+      loadPaymentMethods();
+    }
+  }, [activeTab]);
+
+  const loadPaymentMethods = async () => {
+    setIsLoadingPaymentMethods(true);
+    setPaymentError(null);
+    try {
+      const methods = await fetchPaymentMethods();
+      setPaymentMethods(methods);
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : "Failed to load payment methods");
+    } finally {
+      setIsLoadingPaymentMethods(false);
+    }
+  };
+
+  const handleAddPaymentMethod = async () => {
+    if (!newPaymentAccountNumber || !newPaymentAccountName) return;
+
+    setIsAddingPaymentMethod(true);
+    setPaymentError(null);
+
+    try {
+      const newMethod = await addPaymentMethod({
+        type: newPaymentType,
+        provider: newPaymentProvider || undefined,
+        accountNumber: newPaymentAccountNumber,
+        accountName: newPaymentAccountName,
+      });
+      setPaymentMethods((prev) => [...prev, newMethod]);
+      setShowAddPaymentModal(false);
+      setNewPaymentProvider("");
+      setNewPaymentAccountNumber("");
+      setNewPaymentAccountName("");
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : "Failed to add payment method");
+    } finally {
+      setIsAddingPaymentMethod(false);
+    }
+  };
+
+  const handleDeletePaymentMethod = async (id: string) => {
+    try {
+      await deletePaymentMethod(id);
+      setPaymentMethods((prev) => prev.filter((m) => m.id !== id));
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : "Failed to delete payment method");
+    }
+  };
+
+  const handleSetDefaultPaymentMethod = async (id: string) => {
+    try {
+      await setDefaultPaymentMethod(id);
+      setPaymentMethods((prev) =>
+        prev.map((m) => ({ ...m, isDefault: m.id === id }))
+      );
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : "Failed to set default payment method");
+    }
+  };
+
+  const handleProfileImageChange = async (file: File) => {
+    setIsUploadingProfile(true);
+    setUploadError(null);
+    setUploadSuccess(false);
+
+    try {
+      const previewUrl = URL.createObjectURL(file);
+      const result = await uploadProfilePicture(file);
+      setProfileImage(result.url ?? previewUrl);
+      setUploadSuccess(true);
+      setTimeout(() => setUploadSuccess(false), 3000);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Failed to upload profile picture");
+    } finally {
+      setIsUploadingProfile(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -28,10 +119,38 @@ export default function ProfileTab({ loading, profile }: Props) {
     if (file) handleProfileImageChange(file);
   };
 
-  const handlePortfolioAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePortfolioAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const urls = files.map((f) => URL.createObjectURL(f));
-    setPortfolioImages((prev) => [...prev, ...urls].slice(0, 10));
+    if (files.length === 0) return;
+
+    setIsUploadingPortfolio(true);
+    setUploadError(null);
+    setUploadSuccess(false);
+
+    try {
+      const uploadPromises = files.map((file) => uploadPortfolioImage(file));
+      const results = await Promise.allSettled(uploadPromises);
+      
+      const fulfilledUrls = results
+        .filter((result) => result.status === "fulfilled")
+        .map((result) => (result as PromiseFulfilledResult<{ url: string }>).value.url);
+      
+      const rejectedCount = results.filter((result) => result.status === "rejected").length;
+      
+      if (fulfilledUrls.length > 0) {
+        setPortfolioImages((prev) => [...prev, ...fulfilledUrls].slice(0, 10));
+        setUploadSuccess(true);
+        setTimeout(() => setUploadSuccess(false), 3000);
+      }
+      
+      if (rejectedCount > 0) {
+        setUploadError(`${rejectedCount} image(s) failed to upload`);
+      }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Failed to upload portfolio images");
+    } finally {
+      setIsUploadingPortfolio(false);
+    }
   };
 
   return (
@@ -70,6 +189,18 @@ export default function ProfileTab({ loading, profile }: Props) {
 
       {activeTab === "pictures" && (
         <div className="space-y-4 px-4 pb-28">
+          {uploadError && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {uploadError}
+            </p>
+          )}
+
+          {uploadSuccess && (
+            <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              Upload successful!
+            </p>
+          )}
+
           {/* Profile Picture card */}
           <div className="rounded-2xl bg-white p-5">
             <div className="mb-4 flex items-center gap-2">
@@ -125,31 +256,38 @@ export default function ProfileTab({ loading, profile }: Props) {
                 }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
-                className={`flex  flex-col items-center justify-center rounded-xl border-1 border-solid py-5 px-2 transition-colors ${
+                disabled={isUploadingProfile}
+                className={`flex flex-col items-center justify-center rounded-xl border-1 border-solid py-5 px-2 transition-colors ${
                   isDragging
                     ? "border-orange-400 bg-orange-50"
                     : "border-black/15 bg-white hover:border-black/30 hover:bg-black/2"
-                }`}
+                } ${isUploadingProfile ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                <svg
-                  className="mb-2 h-6 w-6 text-black/40"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-                  />
-                </svg>
-                <p className="text-sm font-medium text-black/70">
-                  Click to upload or drag and drop
-                </p>
-                <p className="mt-0.5 text-xs text-black/40">
-                  PNG, JPG up to 5MB
-                </p>
+                {isUploadingProfile ? (
+                  <p className="text-sm font-medium text-black/70">Uploading...</p>
+                ) : (
+                  <>
+                    <svg
+                      className="mb-2 h-6 w-6 text-black/40"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                      />
+                    </svg>
+                    <p className="text-sm font-medium text-black/70">
+                      Click to upload or drag and drop
+                    </p>
+                    <p className="mt-0.5 text-xs text-black/40">
+                      PNG, JPG up to 5MB
+                    </p>
+                  </>
+                )}
               </button>
               <input
                 ref={fileInputRef}
@@ -219,22 +357,31 @@ export default function ProfileTab({ loading, profile }: Props) {
               {portfolioImages.length < 10 && (
                 <button
                   onClick={() => portfolioInputRef.current?.click()}
-                  className="flex h-20 w-20 flex-col items-center justify-center rounded-xl border-2 border-dashed border-black/15 bg-white text-black/40 hover:border-black/30 hover:bg-black/2 transition-colors"
+                  disabled={isUploadingPortfolio}
+                  className={`flex h-20 w-20 flex-col items-center justify-center rounded-xl border-2 border-dashed border-black/15 bg-white text-black/40 hover:border-black/30 hover:bg-black/2 transition-colors ${
+                    isUploadingPortfolio ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
                 >
-                  <svg
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M12 4.5v15m7.5-7.5h-15"
-                    />
-                  </svg>
-                  <span className="mt-1 text-xs font-medium">Add Photo</span>
+                  {isUploadingPortfolio ? (
+                    <span className="mt-1 text-xs font-medium">Uploading...</span>
+                  ) : (
+                    <>
+                      <svg
+                        className="h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M12 4.5v15m7.5-7.5h-15"
+                        />
+                      </svg>
+                      <span className="mt-1 text-xs font-medium">Add Photo</span>
+                    </>
+                  )}
                 </button>
               )}
             </div>
@@ -282,7 +429,67 @@ export default function ProfileTab({ loading, profile }: Props) {
             <p className="mt-1 text-sm text-black/50">
               Add or manage your payment methods
             </p>
-            <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/15 py-4 text-sm font-medium text-black/50 hover:border-black/30 hover:bg-black/2 transition-colors">
+
+            {paymentError && (
+              <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {paymentError}
+              </p>
+            )}
+
+            {isLoadingPaymentMethods ? (
+              <p className="mt-4 text-sm text-black/60">Loading payment methods...</p>
+            ) : paymentMethods.length === 0 ? (
+              <p className="mt-4 text-sm text-black/60">No payment methods added yet.</p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {paymentMethods.map((method) => (
+                  <div
+                    key={method.id}
+                    className="flex items-center justify-between rounded-xl border border-black/10 bg-[#f5f6f8] p-4"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-black">
+                          {method.type === "mobile_money" && "Mobile Money"}
+                          {method.type === "bank_account" && "Bank Account"}
+                          {method.type === "card" && "Card"}
+                        </span>
+                        {method.isDefault && (
+                          <span className="rounded-full bg-[#e8f8ed] px-2 py-0.5 text-xs text-[#1f9d4a]">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-black/60">
+                        {method.provider && `${method.provider} • `}
+                        {method.accountName} • ****{method.accountNumber?.slice(-4)}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {!method.isDefault && (
+                        <button
+                          onClick={() => handleSetDefaultPaymentMethod(method.id)}
+                          className="text-xs font-medium text-black/60 hover:text-black"
+                        >
+                          Set Default
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeletePaymentMethod(method.id)}
+                        className="text-xs font-medium text-red-600 hover:text-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowAddPaymentModal(true)}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/15 py-4 text-sm font-medium text-black/50 hover:border-black/30 hover:bg-black/2 transition-colors"
+            >
               <svg
                 className="h-5 w-5"
                 fill="none"
@@ -298,6 +505,108 @@ export default function ProfileTab({ loading, profile }: Props) {
               </svg>
               Add Payment Method
             </button>
+          </div>
+        </div>
+      )}
+
+      {showAddPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6">
+            <h3 className="text-xl font-semibold text-black">Add Payment Method</h3>
+
+            {paymentError && (
+              <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {paymentError}
+              </p>
+            )}
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="paymentType" className="block text-sm font-medium text-black">
+                  Type
+                </label>
+                <select
+                  id="paymentType"
+                  value={newPaymentType}
+                  onChange={(e) =>
+                    setNewPaymentType(e.target.value as AddPaymentMethodPayload["type"])
+                  }
+                  className="mt-1 w-full rounded-lg border border-black/10 bg-[#f5f6f8] px-4 py-2 text-black"
+                >
+                  <option value="mobile_money">Mobile Money</option>
+                  <option value="bank_account">Bank Account</option>
+                  <option value="card">Card</option>
+                </select>
+              </div>
+
+              {newPaymentType === "mobile_money" && (
+                <div>
+                  <label htmlFor="provider" className="block text-sm font-medium text-black">
+                    Provider
+                  </label>
+                  <select
+                    id="provider"
+                    value={newPaymentProvider}
+                    onChange={(e) => setNewPaymentProvider(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-black/10 bg-[#f5f6f8] px-4 py-2 text-black"
+                  >
+                    <option value="">Select provider</option>
+                    <option value="MTN">MTN Mobile Money</option>
+                    <option value="Airtel">Airtel Money</option>
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="accountNumber" className="block text-sm font-medium text-black">
+                  Account Number
+                </label>
+                <input
+                  id="accountNumber"
+                  type="text"
+                  value={newPaymentAccountNumber}
+                  onChange={(e) => setNewPaymentAccountNumber(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-black/10 bg-[#f5f6f8] px-4 py-2 text-black"
+                  placeholder="Enter account number"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="accountName" className="block text-sm font-medium text-black">
+                  Account Name
+                </label>
+                <input
+                  id="accountName"
+                  type="text"
+                  value={newPaymentAccountName}
+                  onChange={(e) => setNewPaymentAccountName(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-black/10 bg-[#f5f6f8] px-4 py-2 text-black"
+                  placeholder="Enter account holder name"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowAddPaymentModal(false);
+                  setNewPaymentProvider("");
+                  setNewPaymentAccountNumber("");
+                  setNewPaymentAccountName("");
+                  setPaymentError(null);
+                }}
+                className="flex-1 rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-medium text-black hover:bg-black/[.02]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddPaymentMethod}
+                disabled={!newPaymentAccountNumber || !newPaymentAccountName || isAddingPaymentMethod}
+                className="flex-1 rounded-lg bg-[#ff6a00] px-4 py-2 text-sm font-medium text-white hover:bg-[#e85f00] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isAddingPaymentMethod ? "Adding..." : "Add Payment Method"}
+              </button>
+            </div>
           </div>
         </div>
       )}

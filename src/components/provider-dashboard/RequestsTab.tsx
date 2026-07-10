@@ -102,12 +102,16 @@ function NewRequestCard({
   const customerName = parseHomeownerName(request.homeowner);
   const priority = (request.priority || "normal").toLowerCase();
   const location = formatRequestLocation(request);
-  const phone = request.homeowner?.contactPhone?.trim();
+  const phone = request.homeowner?.contactPhone?.trim() || 
+                request.homeowner?.phone?.trim() ||
+                request.homeowner?.user?.phone?.trim();
   const rating = request.homeowner?.averageRating;
 
   const handleMessage = () => {
-    // Navigate to messaging interface for this customer
-    window.location.href = `/messages?requestId=${request.id}`;
+    if (phone) {
+      const cleanPhone = phone.replace(/\D/g, '');
+      window.open(`https://wa.me/${cleanPhone}`, '_blank');
+    }
   };
 
   return (
@@ -164,14 +168,26 @@ function NewRequestCard({
           >
             {isUpdating ? "Working..." : "Accept Job"}
           </button>
-          <button
-            type="button"
-            onClick={handleMessage}
-            className="inline-flex h-8 items-center gap-2 rounded-lg border border-black/10 bg-white px-3 text-sm font-medium text-black hover:bg-black/[.02]"
-          >
-            <MessageIcon />
-            Message {customerName}
-          </button>
+          {phone ? (
+            <a
+              href={`https://wa.me/${phone.replace(/\D/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-8 items-center gap-2 rounded-lg border border-black/10 bg-white px-3 text-sm font-medium text-black hover:bg-black/[.02]"
+            >
+              <MessageIcon />
+              Message {customerName}
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={handleMessage}
+              className="inline-flex h-8 items-center gap-2 rounded-lg border border-black/10 bg-white px-3 text-sm font-medium text-black hover:bg-black/[.02]"
+            >
+              <MessageIcon />
+              Message {customerName}
+            </button>
+          )}
           {phone ? (
             <a
               href={`tel:${phone}`}
@@ -208,10 +224,15 @@ function AcceptedRequestCard({ request }: { request: ServiceRequest }) {
   const serviceTitle = request.service?.title || "Service";
   const statusLabel = formatAcceptedStatus(request.status);
   const location = formatRequestLocation(request);
+  const phone = request.homeowner?.contactPhone?.trim() || 
+                request.homeowner?.phone?.trim() ||
+                request.homeowner?.user?.phone?.trim();
 
   const handleMessageCustomer = () => {
-    // Navigate to messaging interface for this customer
-    window.location.href = `/messages?requestId=${request.id}`;
+    if (phone) {
+      const cleanPhone = phone.replace(/\D/g, '');
+      window.open(`https://wa.me/${cleanPhone}`, '_blank');
+    }
   };
 
   const handleStartJob = () => {
@@ -245,14 +266,26 @@ function AcceptedRequestCard({ request }: { request: ServiceRequest }) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={handleMessageCustomer}
-          className="inline-flex h-8 items-center gap-2 rounded-lg bg-[#020013] px-4 text-sm font-medium text-white hover:bg-black"
-        >
-          <MessageIcon />
-          Message {customerName}
-        </button>
+        {phone ? (
+          <a
+            href={`https://wa.me/${phone.replace(/\D/g, '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-8 items-center gap-2 rounded-lg bg-[#020013] px-4 text-sm font-medium text-white hover:bg-black"
+          >
+            <MessageIcon />
+            Message {customerName}
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={handleMessageCustomer}
+            className="inline-flex h-8 items-center gap-2 rounded-lg bg-[#020013] px-4 text-sm font-medium text-white hover:bg-black"
+          >
+            <MessageIcon />
+            Message {customerName}
+          </button>
+        )}
         <button
           type="button"
           onClick={handleStartJob}

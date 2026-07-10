@@ -4,6 +4,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const USE_PROXY = false; // Set to false to disable proxy and use direct backend calls
 
+function buildApiUrl(endpoint: string) {
+  const normalizedEndpoint =
+    API_URL?.endsWith("/api") && endpoint.startsWith("/api/")
+      ? endpoint.slice("/api".length)
+      : endpoint;
+
+  return USE_PROXY ? `/api/proxy${normalizedEndpoint}` : `${API_URL}${normalizedEndpoint}`;
+}
+
 
 
 
@@ -197,7 +206,7 @@ export async function apiRequest<T = unknown>(
 
 
 
-  const url = USE_PROXY ? `/api/proxy${endpoint}` : `${API_URL}${endpoint}`;
+  const url = buildApiUrl(endpoint);
 
 
 
@@ -1977,6 +1986,70 @@ export type ServiceRequestStatus =
 
 
 
+export interface SubmitQuotePayload {
+
+
+
+  serviceRequestId: string;
+
+
+
+  amount: number;
+
+
+
+  description?: string;
+
+
+
+  estimatedDuration?: string;
+
+
+
+}
+
+
+
+export const submitQuote = async (
+
+
+
+  payload: SubmitQuotePayload,
+
+
+
+): Promise<ServiceRequestItem | null> => {
+
+
+
+  const response = await apiRequest<unknown>("/quotes", {
+
+
+
+    method: "POST",
+
+
+
+    body: JSON.stringify(payload),
+
+
+
+  });
+
+
+
+
+
+
+
+  return mapServiceRequestFromApi(response);
+
+
+
+};
+
+
+
 
 
 
@@ -2907,6 +2980,157 @@ export const rejectProvider = async (id: string): Promise<void> => {
   await apiRequest(`/users/providers/approvals/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify({ providerApprovalStatus: "rejected" }),
+  });
+};
+
+export interface ProviderAvailability {
+  isAvailable: boolean;
+  status: "active" | "suspended" | "pending";
+}
+
+export const updateProviderAvailability = async (
+  isAvailable: boolean,
+): Promise<ProviderAvailability> => {
+  const status: ProviderAvailability["status"] = isAvailable
+    ? "active"
+    : "suspended";
+
+  return apiRequest<ProviderAvailability>("/api/v1/provider/profile/status", {
+    method: "PATCH",
+    body: JSON.stringify({ isAvailable, status }),
+  });
+};
+
+export interface WeeklyAvailability {
+  [day: string]: {
+    enabled: boolean;
+    start: string;
+    end: string;
+  };
+}
+
+export const updateWeeklyAvailability = async (
+  availability: WeeklyAvailability,
+): Promise<void> => {
+  await apiRequest("/api/v1/provider/profile/status", {
+    method: "PATCH",
+    body: JSON.stringify({ availability }),
+  });
+};
+
+const shouldSendAuth = true;
+
+export const uploadProfilePicture = async (file: File): Promise<{ url?: string }> => {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  if (!API_URL) {
+    throw new Error("Missing NEXT_PUBLIC_API_URL environment variable");
+  }
+
+  const token = !USE_PROXY ? localStorage.getItem("token") : null;
+  const url = buildApiUrl("/api/v1/provider/profile-image");
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      ...(shouldSendAuth && !USE_PROXY && token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || `Upload failed with status ${res.status}`);
+  }
+
+  const text = await res.text();
+  let data: unknown = null;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
+  const record = typeof data === "object" && data ? data as Record<string, unknown> : {};
+  const providerProfile =
+    typeof record.provider_profile === "object" && record.provider_profile
+      ? record.provider_profile as Record<string, unknown>
+      : {};
+
+  return {
+    url:
+      readString(record.url) ??
+      readString(record.imageUrl) ??
+      readString(record.profileImageUrl) ??
+      readString(providerProfile.profileImageUrl),
+  };
+};
+
+export const uploadPortfolioImage = async (file: File): Promise<{ url: string }> => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  if (!API_URL) {
+    throw new Error("Missing NEXT_PUBLIC_API_URL environment variable");
+  }
+
+  const token = !USE_PROXY ? localStorage.getItem("token") : null;
+  const url = buildApiUrl("/api/v1/provider/portfolio");
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      ...(shouldSendAuth && !USE_PROXY && token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Upload failed with status ${res.status}`);
+  }
+
+  return res.json();
+};
+
+export interface PaymentMethod {
+  id: string;
+  type: "mobile_money" | "bank_account" | "card";
+  provider?: string;
+  accountNumber?: string;
+  accountName?: string;
+  isDefault: boolean;
+}
+
+export const fetchPaymentMethods = async (): Promise<PaymentMethod[]> => {
+  return apiRequest<PaymentMethod[]>("/providers/payment-methods");
+};
+
+export interface AddPaymentMethodPayload {
+  type: "mobile_money" | "bank_account" | "card";
+  provider?: string;
+  accountNumber: string;
+  accountName: string;
+}
+
+export const addPaymentMethod = async (
+  payload: AddPaymentMethodPayload,
+): Promise<PaymentMethod> => {
+  return apiRequest<PaymentMethod>("/providers/payment-methods", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const deletePaymentMethod = async (id: string): Promise<void> => {
+  await apiRequest(`/providers/payment-methods/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+};
+
+export const setDefaultPaymentMethod = async (id: string): Promise<void> => {
+  await apiRequest(`/providers/payment-methods/${encodeURIComponent(id)}/default`, {
+    method: "PATCH",
   });
 };
 

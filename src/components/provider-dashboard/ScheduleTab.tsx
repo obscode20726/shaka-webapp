@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type React from "react";
 import type { Availability, Booking } from "./types";
+import { updateWeeklyAvailability } from "@/lib/api";
 
 type Props = {
   availability: Availability;
@@ -14,6 +16,26 @@ export default function ScheduleTab({
   setAvailability,
   statsLoading,
 }: Props) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const handleSaveAvailability = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    try {
+      await updateWeeklyAvailability(availability);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save availability");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="mt-6 rounded-2xl border border-black/10 bg-white p-4 sm:p-6">
       <h2 className="text-xl font-semibold text-black">
@@ -36,12 +58,25 @@ export default function ScheduleTab({
 
       <UpcomingBookings bookings={bookings} statsLoading={statsLoading} />
 
+      {saveError && (
+        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {saveError}
+        </p>
+      )}
+
+      {saveSuccess && (
+        <p className="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+          Availability saved successfully!
+        </p>
+      )}
+
       <button
         type="button"
-        onClick={() => alert("Availability saved (UI only for now).")}
-        className="mt-6 inline-flex items-center rounded-lg bg-[#0f172a] px-5 py-3 text-sm font-medium text-white hover:bg-black"
+        onClick={handleSaveAvailability}
+        disabled={isSaving}
+        className="mt-6 inline-flex items-center rounded-lg bg-[#0f172a] px-5 py-3 text-sm font-medium text-white hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Save Availability
+        {isSaving ? "Saving..." : "Save Availability"}
       </button>
     </div>
   );
