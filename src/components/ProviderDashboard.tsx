@@ -580,7 +580,7 @@ export default function ProviderDashboard() {
 
 
 
-            <ProfileTab loading={loading} profile={profile} />
+            <ProfileTab />
 
 
 

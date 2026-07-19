@@ -814,7 +814,7 @@ export const createServiceRequest = async (
 
 
 
-  return apiRequest("/service-requests", {
+  return apiRequest("/api/service-requests", {
 
 
 
@@ -1550,7 +1550,7 @@ export const fetchServiceRequests = async (): Promise<ServiceRequestItem[]> => {
 
 
 
-  const response = await apiRequest<unknown>("/service-requests");
+  const response = await apiRequest<unknown>("/api/service-requests");
 
 
 
@@ -2010,6 +2010,22 @@ export interface SubmitQuotePayload {
 
 
 
+export type QuoteStatus = "pending" | "accepted" | "rejected";
+
+export const updateQuoteStatus = async (
+  id: string,
+  status: QuoteStatus,
+): Promise<ServiceRequestItem | null> => {
+  const response = await apiRequest<unknown>(
+    `/api/quotes/${encodeURIComponent(id)}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    },
+  );
+  return mapServiceRequestFromApi(response);
+};
+
 export const submitQuote = async (
 
 
@@ -2022,7 +2038,7 @@ export const submitQuote = async (
 
 
 
-  const response = await apiRequest<unknown>("/quotes", {
+  const response = await apiRequest<unknown>("/api/quotes", {
 
 
 
@@ -2070,6 +2086,122 @@ export const submitQuote = async (
 
 
 
+export const fetchServiceRequestById = async (
+  id: string,
+): Promise<ServiceRequestItem | null> => {
+  const response = await apiRequest<unknown>(
+    `/api/service-requests/${encodeURIComponent(id)}`,
+  );
+  return mapServiceRequestFromApi(response);
+};
+
+export const deleteServiceRequest = async (id: string): Promise<void> => {
+  await apiRequest(`/api/service-requests/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+};
+
+export interface CreateBookingPayload {
+  quoteId: string;
+  serviceRequestId: string;
+}
+
+export interface BookingResponse {
+  id: string;
+  quoteId: string;
+  serviceRequestId: string;
+  status: string;
+  createdAt: string;
+}
+
+export const createBooking = async (
+  payload: CreateBookingPayload,
+): Promise<BookingResponse> => {
+  return apiRequest<BookingResponse>("/api/bookings", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export type EscrowStatus = "pending" | "funded" | "released" | "refunded";
+
+export const updateBookingEscrow = async (
+  id: string,
+  escrowStatus: EscrowStatus,
+): Promise<BookingResponse> => {
+  return apiRequest<BookingResponse>(
+    `/api/bookings/${encodeURIComponent(id)}/escrow`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ escrowStatus }),
+    },
+  );
+};
+
+export interface InitializePaymentPayload {
+  bookingId: string;
+  amount: number;
+  currency?: string;
+  redirectUrl?: string;
+}
+
+export interface PaymentInitializeResponse {
+  paymentUrl: string;
+  reference: string;
+  amount: number;
+  shakaFee: number;
+  totalAmount: number;
+}
+
+export const initializePayment = async (
+  payload: InitializePaymentPayload,
+): Promise<PaymentInitializeResponse> => {
+  return apiRequest<PaymentInitializeResponse>("/api/payment/initialize", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export interface VerifyPaymentPayload {
+  reference: string;
+  transactionId?: string;
+}
+
+export interface PaymentVerifyResponse {
+  status: "success" | "failed" | "pending";
+  reference: string;
+  amount: number;
+  transactionId?: string;
+}
+
+export const verifyPayment = async (
+  payload: VerifyPaymentPayload,
+): Promise<PaymentVerifyResponse> => {
+  return apiRequest<PaymentVerifyResponse>("/api/payment/verify", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export interface PaymentWebhookPayload {
+  event: string;
+  data: {
+    reference: string;
+    amount: number;
+    status: string;
+    transactionId?: string;
+  };
+}
+
+export const processPaymentWebhook = async (
+  payload: PaymentWebhookPayload,
+): Promise<{ success: boolean }> => {
+  return apiRequest<{ success: boolean }>("/api/payment/webhook", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
 export const updateServiceRequestStatus = async (
 
 
@@ -2090,7 +2222,7 @@ export const updateServiceRequestStatus = async (
 
 
 
-    `/service-requests/${encodeURIComponent(id)}/status`,
+    `/api/service-requests/${encodeURIComponent(id)}/status`,
 
 
 

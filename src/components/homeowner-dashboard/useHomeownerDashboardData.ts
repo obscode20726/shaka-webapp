@@ -70,13 +70,10 @@ export function useHomeownerDashboardData() {
         let serviceRequests: ServiceRequest[] = [];
         try {
           serviceRequests = (await fetchServiceRequests()) as ServiceRequest[];
-        } catch (err) {
+        } catch {
           // Unable to load service requests
         }
 
-        const upcomingRequests = serviceRequests.filter(
-          (request) => normalizeRequestStatus(request.status) === "pending",
-        );
         const upcomingBookings = bookings.filter(
           (booking) => normalizeRequestStatus(booking.escrowStatus) === "pending",
         );
@@ -95,7 +92,7 @@ export function useHomeownerDashboardData() {
           if (Array.isArray(response)) {
             setBookings(response as Booking[]);
           }
-        } catch (err) {
+        } catch {
           // Unable to load bookings
         }
 
@@ -111,7 +108,7 @@ export function useHomeownerDashboardData() {
             }, 0);
             setPayments(typedPayments);
           }
-        } catch (err) {
+        } catch {
           // Unable to load payments
         }
 
@@ -122,7 +119,7 @@ export function useHomeownerDashboardData() {
           totalSpent,
         });
         setRequests(serviceRequests);
-      } catch (err: unknown) {
+      } catch {
         // Error fetching homeowner dashboard data
       } finally {
         setStatsLoading(false);
@@ -130,7 +127,7 @@ export function useHomeownerDashboardData() {
     };
 
     fetchDashboardData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     loading,

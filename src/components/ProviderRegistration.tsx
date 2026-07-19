@@ -207,7 +207,6 @@ export default function ProviderRegistration() {
     consentTerms: false,
     consentPrivacy: false,
   });
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const buildProviderProfilePayload = () => ({
@@ -284,7 +283,6 @@ export default function ProviderRegistration() {
     }
 
     try {
-      setLoading(true);
       setError("");
       const phoneDigits = normalizeRwandanMobileDigits(form.phone);
 
@@ -326,8 +324,6 @@ export default function ProviderRegistration() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "signup failed";
       setError(message);
-    } finally {
-      setLoading(false);
     }
   };
 

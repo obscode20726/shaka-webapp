@@ -2,7 +2,7 @@
 
 import React from "react";
 import CountUp from "react-countup";
-import { motion, Variants } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   sectionContainerVariants,
   sectionHeaderVariants,

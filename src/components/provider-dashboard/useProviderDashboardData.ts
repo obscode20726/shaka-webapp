@@ -423,7 +423,7 @@ export function useProviderDashboardData() {
 
         );
 
-      } catch (err: unknown) {
+      } catch {
         // Error fetching provider dashboard data
       } finally {
 
@@ -437,7 +437,7 @@ export function useProviderDashboardData() {
 
     fetchDashboardData();
 
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
 

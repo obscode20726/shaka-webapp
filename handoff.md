@@ -7,7 +7,7 @@ Build Shaka, a Next.js web application with multi-role dashboards (admin, homeow
 - Next.js 15.5.18 with React 19, TypeScript, and TailwindCSS
 - Animation libraries: framer-motion and GSAP integrated
 - Three dashboard types implemented: admin, homeowner, provider
-- Latest commit (bf3d986) fixed TypeScript error in provider-dashboard components
+- Latest commit (b33b028) enhanced quote submission with materials selection and custom materials
 - Project is on main branch, synced with origin/main (no vscode-changes branch exists in repository)
 - TypeScript compilation passes with no errors
 - All provider dashboard API integrations completed
