@@ -6,6 +6,20 @@ export type HomeownerProfile = {
   contactPhone?: string;
 };
 
+export type Quote = {
+  id?: string;
+  amount?: number;
+  description?: string;
+  estimatedDuration?: string;
+  materials?: string[];
+  terms?: string;
+  validUntil?: string;
+  materialCost?: number;
+  laborCost?: number;
+  status?: string;
+  createdAt?: string;
+};
+
 export type ServiceRequest = {
   id: string;
   status: string;
@@ -21,6 +35,7 @@ export type ServiceRequest = {
     lastName: string;
     businessName?: string;
   };
+  quote?: Quote;
 };
 
 export type Booking = {

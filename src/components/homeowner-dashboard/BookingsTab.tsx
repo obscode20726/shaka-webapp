@@ -5,7 +5,9 @@ import {
   statusClassName,
 } from "./formatters";
 import type React from "react";
+import { useState } from "react";
 import type { Booking, ServiceRequest } from "./types";
+import RatingModal from "./RatingModal";
 
 type Props = {
   bookings: Booking[];
@@ -18,6 +20,7 @@ export default function BookingsTab({
   requests,
   statsLoading,
 }: Props) {
+  const [reviewRequest, setReviewRequest] = useState<ServiceRequest | null>(null);
   const activeRequests = requests.filter((request) =>
     ["accepted", "in-progress"].includes(request.status),
   );
@@ -142,7 +145,7 @@ export default function BookingsTab({
                 </span>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <ActionButton>Write Review</ActionButton>
+                <ActionButton onClick={() => setReviewRequest(request)}>Write Review</ActionButton>
                 <ActionButton>Book Again</ActionButton>
                 <ActionButton>View Invoice</ActionButton>
               </div>
@@ -150,6 +153,7 @@ export default function BookingsTab({
           ))
         )}
       </BookingSection>
+      <RatingModal isOpen={Boolean(reviewRequest)} onClose={() => setReviewRequest(null)} providerName={fullName(reviewRequest?.provider)} serviceName={reviewRequest?.service?.title || "Service"} />
     </div>
   );
 }
@@ -185,13 +189,17 @@ function ActionButton({
   children,
   danger = false,
   primary = false,
+  onClick,
 }: {
   children: React.ReactNode;
   danger?: boolean;
   primary?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
+      type="button"
+      onClick={onClick}
       className={`rounded-lg border px-3 py-2 text-xs font-medium ${
         primary
           ? "border-[#ff6b00] bg-[#ffb000] text-black"

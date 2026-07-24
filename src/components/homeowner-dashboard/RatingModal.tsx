@@ -1,0 +1,22 @@
+"use client";
+
+import { useState } from "react";
+
+type Props = { isOpen: boolean; onClose: () => void; providerName: string; serviceName: string };
+type Aspect = "Punctuality" | "Quality of Work" | "Professionalism";
+
+function Stars({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  return <div className="flex gap-1" aria-label={`${value} out of 5 stars`}>{[1, 2, 3, 4, 5].map((star) => <button key={star} type="button" onClick={() => onChange(star)} className={`text-3xl leading-none ${star <= value ? "text-[#ffc400]" : "text-[#cbd2dc]"}`} aria-label={`Rate ${star} stars`}>☆</button>)}</div>;
+}
+
+export default function RatingModal({ isOpen, onClose, providerName, serviceName }: Props) {
+  const [overall, setOverall] = useState(0);
+  const [aspects, setAspects] = useState<Record<Aspect, number>>({ Punctuality: 0, "Quality of Work": 0, Professionalism: 0 });
+  const [comment, setComment] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  if (!isOpen) return null;
+  const labels = ["", "Poor", "Fair", "Good", "Very Good", "Excellent"];
+  const finish = () => { setSubmitted(false); onClose(); };
+  if (submitted) return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-2xl"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#d9f9e4] text-4xl text-[#00a83b]">✓</div><h2 className="mt-5 text-2xl font-semibold">Thanks for your review!</h2><p className="mt-2 text-black/60">Your feedback helps homeowners make informed decisions.</p><button type="button" onClick={finish} className="mt-6 w-full rounded-lg bg-[#ff6900] py-3 font-semibold text-white">Done</button></div></div>;
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Rate your experience"><div className="w-full max-w-[512px] rounded-xl bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-xl font-semibold">Rate Your Experience</h2><button type="button" onClick={finish} className="text-xl text-black/60">×</button></div><div className="mt-4 flex items-center gap-3 rounded-xl border border-[#dfe2e7] bg-[#fafbfc] p-4"><span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f0f1f4] text-lg">{providerName.charAt(0) || "P"}</span><div><p className="font-medium">{providerName || "Your provider"}</p><p className="text-sm text-black/60">{serviceName}</p></div></div><div className="mt-6 text-center"><p className="font-medium">Overall Rating <span className="text-red-600">*</span></p><div className="mt-3 flex justify-center"><Stars value={overall} onChange={setOverall} /></div><p className="mt-2 text-sm text-black/55">{overall ? labels[overall] : "Tap to rate"}</p></div><div className="mt-6 rounded-xl border border-[#dfe2e7] p-4"><p className="mb-4 font-medium">Rate Specific Aspects</p>{(Object.keys(aspects) as Aspect[]).map((aspect) => <div key={aspect} className="mb-3 flex items-center justify-between gap-3 last:mb-0"><span className="text-sm">{aspect}</span><Stars value={aspects[aspect]} onChange={(value) => setAspects((current) => ({ ...current, [aspect]: value }))} /></div>)}</div><label className="mt-5 block text-sm font-medium">Share Your Experience <span className="font-normal">(Optional)</span><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Tell us about your experience with this provider..." className="mt-2 min-h-16 w-full resize-none rounded-lg bg-[#f3f4f6] p-3 text-sm font-normal outline-none ring-[#ff6900] focus:ring-1" /></label><p className="mt-1 text-xs text-black/55">Your review helps other homeowners make informed decisions</p><div className="mt-5 flex gap-3"><button type="button" disabled={!overall} onClick={() => setSubmitted(true)} className="flex-1 rounded-lg bg-[#ff6900] py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">Submit Review</button><button type="button" onClick={finish} className="flex-1 rounded-lg border border-[#dfe2e7] py-3 text-sm font-medium">Skip for Now</button></div><p className="mt-5 rounded-lg border border-[#b9d7ff] bg-[#eff6ff] p-3 text-center text-xs text-[#1d4ed8]">Reviews are public and help maintain quality on the Shaka platform</p></div></div>;
+}

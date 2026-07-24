@@ -32,6 +32,15 @@ export function useHomeownerDashboardData() {
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [statsLoading, setStatsLoading] = React.useState(true);
 
+  const refreshRequests = React.useCallback(async () => {
+    try {
+      const serviceRequests = (await fetchServiceRequests()) as ServiceRequest[];
+      setRequests(serviceRequests);
+    } catch {
+      // Unable to refresh service requests
+    }
+  }, []);
+
   React.useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -138,5 +147,6 @@ export function useHomeownerDashboardData() {
     requests,
     stats,
     statsLoading,
+    refreshRequests,
   };
 }

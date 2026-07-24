@@ -898,6 +898,20 @@ export interface ServiceRequestProviderRef {
 
 
 
+export interface QuoteItem {
+  id?: string;
+  amount?: number;
+  description?: string;
+  estimatedDuration?: string;
+  materials?: string[];
+  terms?: string;
+  validUntil?: string;
+  materialCost?: number;
+  laborCost?: number;
+  status?: string;
+  createdAt?: string;
+}
+
 export interface ServiceRequestItem {
 
 
@@ -963,6 +977,10 @@ export interface ServiceRequestItem {
 
 
   provider?: ServiceRequestProviderRef;
+
+
+
+  quote?: QuoteItem;
 
 
 
@@ -1226,6 +1244,106 @@ function mapServiceRequestFromApi(raw: unknown): ServiceRequestItem | null {
 
 
 
+  const quoteRaw = record.quote;
+
+
+
+  const quote =
+
+
+
+    quoteRaw && typeof quoteRaw === "object"
+
+
+
+      ? {
+
+
+
+          id: readString((quoteRaw as Record<string, unknown>).id),
+
+
+
+          amount: typeof (quoteRaw as Record<string, unknown>).amount === "number"
+
+
+
+            ? (quoteRaw as Record<string, unknown>).amount as number
+
+
+
+            : undefined,
+
+
+
+          description: readString((quoteRaw as Record<string, unknown>).description),
+
+
+
+          estimatedDuration: readString((quoteRaw as Record<string, unknown>).estimatedDuration),
+
+
+
+          materials: Array.isArray((quoteRaw as Record<string, unknown>).materials)
+
+
+
+            ? (quoteRaw as Record<string, unknown>).materials as string[]
+
+
+
+            : undefined,
+
+
+
+          terms: readString((quoteRaw as Record<string, unknown>).terms),
+
+
+
+          validUntil: readString((quoteRaw as Record<string, unknown>).validUntil),
+
+
+
+          materialCost: typeof (quoteRaw as Record<string, unknown>).materialCost === "number"
+
+
+
+            ? (quoteRaw as Record<string, unknown>).materialCost as number
+
+
+
+            : undefined,
+
+
+
+          laborCost: typeof (quoteRaw as Record<string, unknown>).laborCost === "number"
+
+
+
+            ? (quoteRaw as Record<string, unknown>).laborCost as number
+
+
+
+            : undefined,
+
+
+
+          status: readString((quoteRaw as Record<string, unknown>).status),
+
+
+
+          createdAt: readString((quoteRaw as Record<string, unknown>).createdAt),
+
+
+
+        }
+
+
+
+      : undefined;
+
+
+
 
 
 
@@ -1323,6 +1441,10 @@ function mapServiceRequestFromApi(raw: unknown): ServiceRequestItem | null {
 
 
     provider,
+
+
+
+    quote,
 
 
 
@@ -1882,11 +2004,10 @@ export const fetchServiceRequestsForProvider = async (): Promise<
 
 
 
-      `/service-requests?providerId=${encodeURIComponent(profileId)}`,
+      `/api/service-requests?providerId=${encodeURIComponent(profileId)}`,
 
 
 
-      `/providers/${encodeURIComponent(profileId)}/service-requests`,
 
 
 
@@ -2024,6 +2145,45 @@ export const updateQuoteStatus = async (
     },
   );
   return mapServiceRequestFromApi(response);
+};
+
+export interface ApproveQuotePayload {
+  quoteId: string;
+  serviceRequestId: string;
+  paymentMethod: string;
+}
+
+export interface ApproveQuoteResponse {
+  success: boolean;
+  bookingId?: string;
+  paymentReference?: string;
+  amount: number;
+  serviceFee: number;
+  totalAmount: number;
+}
+
+export const approveQuote = async (
+  payload: ApproveQuotePayload,
+): Promise<ApproveQuoteResponse> => {
+  return apiRequest<ApproveQuoteResponse>("/api/quotes/approve", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export interface RejectQuotePayload {
+  quoteId: string;
+  serviceRequestId: string;
+  reason?: string;
+}
+
+export const rejectQuote = async (
+  payload: RejectQuotePayload,
+): Promise<{ success: boolean }> => {
+  return apiRequest<{ success: boolean }>("/api/quotes/reject", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 };
 
 export const submitQuote = async (
@@ -3264,6 +3424,65 @@ export const setDefaultPaymentMethod = async (id: string): Promise<void> => {
   await apiRequest(`/providers/payment-methods/${encodeURIComponent(id)}/default`, {
     method: "PATCH",
   });
+};
+
+export interface PaymentTransaction {
+  id: string;
+  amount: number;
+  status: "pending" | "completed" | "failed";
+  createdAt: string;
+  homeowner?: {
+    firstName?: string;
+    lastName?: string;
+    fullName?: string;
+  };
+  bookingId?: string;
+  serviceRequestId?: string;
+}
+
+export const fetchPaymentHistory = async (): Promise<PaymentTransaction[]> => {
+  try {
+    const bookingsResponse = await apiRequest<unknown>("/api/bookings");
+    const bookings = unwrapArrayResponse<any>(bookingsResponse);
+    
+    // Fetch service requests to get homeowner information
+    let serviceRequestsData: any[] = [];
+    try {
+      const serviceRequestsResponse = await apiRequest<unknown>("/api/service-requests");
+      serviceRequestsData = unwrapArrayResponse<any>(serviceRequestsResponse);
+    } catch {
+      // Continue without homeowner data if service requests fail
+    }
+    
+    // Create a map of serviceRequestId to homeowner data
+    const homeownerMap = new Map<string, any>();
+    serviceRequestsData.forEach((sr: any) => {
+      if (sr.id && sr.homeowner) {
+        homeownerMap.set(sr.id, sr.homeowner);
+      }
+    });
+    
+    // Transform bookings into payment transactions with homeowner data
+    return bookings.map((booking: any) => {
+      const homeowner = booking.serviceRequestId ? homeownerMap.get(booking.serviceRequestId) : null;
+      return {
+        id: booking.id,
+        amount: booking.amount || 0,
+        status: booking.escrowStatus === "released" ? "completed" : 
+                booking.escrowStatus === "pending" ? "pending" : "failed",
+        createdAt: booking.scheduledAt || booking.createdAt,
+        bookingId: booking.id,
+        serviceRequestId: booking.serviceRequestId,
+        homeowner: homeowner ? {
+          firstName: homeowner.firstName,
+          lastName: homeowner.lastName,
+          fullName: homeowner.fullName,
+        } : undefined,
+      };
+    });
+  } catch {
+    return [];
+  }
 };
 
 

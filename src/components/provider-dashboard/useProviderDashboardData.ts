@@ -8,6 +8,8 @@ import {
 
   apiRequest,
 
+  fetchPaymentHistory,
+
   fetchProviderDashboardMetrics,
 
   fetchServiceRequestsForProvider,
@@ -15,6 +17,8 @@ import {
   unwrapArrayResponse,
 
   updateServiceRequestStatus,
+
+  type PaymentTransaction,
 
   type UserMeResponse,
 
@@ -98,6 +102,12 @@ export function useProviderDashboardData() {
 
   >([]);
 
+  const [paymentHistory, setPaymentHistory] = React.useState<
+
+    PaymentTransaction[]
+
+  >([]);
+
   const [statsLoading, setStatsLoading] = React.useState(true);
 
   const [updatingRequestId, setUpdatingRequestId] = React.useState<
@@ -111,6 +121,10 @@ export function useProviderDashboardData() {
     string | null
 
   >(null);
+
+  const [dataFetchError, setDataFetchError] = React.useState<string | null>(null);
+
+  const [isRetrying, setIsRetrying] = React.useState(false);
 
 
 
@@ -347,6 +361,27 @@ export function useProviderDashboardData() {
           }
         }
 
+        // Fetch payment history
+        try {
+          const payments = await fetchPaymentHistory();
+          setPaymentHistory(payments);
+        } catch (err) {
+          const message =
+            err instanceof Error ? err.message : "Unable to load payment history";
+          const lowerMessage = message.toLowerCase();
+          if (
+            lowerMessage.includes("unauthorized") ||
+            lowerMessage.includes("token") ||
+            lowerMessage.includes("forbidden")
+          ) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            document.cookie =
+              "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            window.location.href = "/signin/provider";
+          }
+        }
+
 
 
 
@@ -439,6 +474,58 @@ export function useProviderDashboardData() {
 
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Polling for real-time updates
+  React.useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        // Refresh service requests
+        const serviceRequests = (await fetchServiceRequestsForProvider()) as ServiceRequest[];
+        const filteredRequests = serviceRequests.filter((request) =>
+          isProviderVisibleRequest(request.status),
+        );
+        setRequests(filteredRequests);
+
+        // Refresh bookings
+        try {
+          const response = await apiRequest("/bookings");
+          const typedBookings = unwrapArrayResponse<Booking>(response);
+          setBookings(typedBookings);
+        } catch {
+          // Silent fail for polling
+        }
+
+        // Refresh payment history
+        try {
+          const payments = await fetchPaymentHistory();
+          setPaymentHistory(payments);
+        } catch {
+          // Silent fail for polling
+        }
+
+        // Refresh metrics
+        try {
+          const metrics = await fetchProviderDashboardMetrics();
+          const providerStats = metrics?.provider_stats;
+          
+          if (providerStats) {
+            setStats((prev) => ({
+              ...prev,
+              upcomingJobs: providerStats.upcoming_jobs_count ?? prev.upcomingJobs,
+              rating: providerStats.average_rating ?? prev.rating,
+              jobsCompleted: providerStats.total_bookings ?? prev.jobsCompleted,
+            }));
+          }
+        } catch {
+          // Silent fail for polling
+        }
+      } catch {
+        // Silent fail for polling
+      }
+    }, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(pollInterval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
 
 
   const acceptedRequests = React.useMemo(() => {
@@ -529,6 +616,19 @@ export function useProviderDashboardData() {
 
   );
 
+  const retryDataFetch = React.useCallback(async () => {
+    setIsRetrying(true);
+    setDataFetchError(null);
+    try {
+      // Trigger the dashboard data fetch by setting a flag or calling the fetch function directly
+      // For simplicity, we'll reload the page to trigger a fresh data fetch
+      window.location.reload();
+    } catch (err) {
+      setDataFetchError(err instanceof Error ? err.message : "Failed to retry");
+      setIsRetrying(false);
+    }
+  }, []);
+
 
 
   return {
@@ -539,11 +639,17 @@ export function useProviderDashboardData() {
 
     bookings,
 
+    dataFetchError,
+
     declineRequest,
+
+    isRetrying,
 
     loading,
 
     pendingRequests,
+
+    paymentHistory,
 
     profile,
 
@@ -554,6 +660,8 @@ export function useProviderDashboardData() {
     requestActionError,
 
     requests,
+
+    retryDataFetch,
 
     stats: liveStats,
 

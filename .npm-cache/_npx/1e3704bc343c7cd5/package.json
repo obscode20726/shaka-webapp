@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@keygraph/shannon": "^2.0.0"
+  },
+  "_npx": {
+    "packages": [
+      "@keygraph/shannon@latest"
+    ]
+  }
+}

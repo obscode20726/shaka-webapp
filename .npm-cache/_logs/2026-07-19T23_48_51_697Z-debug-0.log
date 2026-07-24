@@ -1,0 +1,133 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Users\shema\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.4.2
+2 info using node@v22.16.0
+3 silly config load:file:C:\Users\shema\AppData\Roaming\npm\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\shema\Desktop\project\shaka\.npmrc
+5 silly config load:file:C:\Users\shema\.npmrc
+6 silly config load:file:C:\Users\shema\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm exec @keygraph/shannon@latest --version
+8 verbose argv "exec" "--yes" "--" "@keygraph/shannon@latest" "--version"
+9 verbose logfile logs-max:10 dir:C:\Users\shema\Desktop\project\shaka\.npm-cache\_logs\2026-07-19T23_48_51_697Z-
+10 verbose logfile C:\Users\shema\Desktop\project\shaka\.npm-cache\_logs\2026-07-19T23_48_51_697Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:2197815296 maxSize:549453824 maxEntrySize:274726912
+13 http fetch GET 200 https://registry.npmjs.org/npm 1503ms
+14 http fetch GET 200 https://registry.npmjs.org/@keygraph%2fshannon 1241ms (cache miss)
+15 silly packumentCache heap:2197815296 maxSize:549453824 maxEntrySize:274726912
+16 silly packumentCache heap:2197815296 maxSize:549453824 maxEntrySize:274726912
+17 silly idealTree buildDeps
+18 silly fetch manifest @keygraph/shannon@2.0.0
+19 silly packumentCache full:https://registry.npmjs.org/@keygraph%2fshannon cache-miss
+20 http fetch GET 200 https://registry.npmjs.org/@keygraph%2fshannon 895ms (cache miss)
+21 silly packumentCache full:https://registry.npmjs.org/@keygraph%2fshannon set size:undefined disposed:false
+22 silly placeDep ROOT @keygraph/shannon@2.0.0 OK for:  want: 2.0.0
+23 silly fetch manifest @clack/prompts@^1.1.0
+24 silly packumentCache full:https://registry.npmjs.org/@clack%2fprompts cache-miss
+25 silly fetch manifest chokidar@^5.0.0
+26 silly packumentCache full:https://registry.npmjs.org/chokidar cache-miss
+27 silly fetch manifest dotenv@^17.3.1
+28 silly packumentCache full:https://registry.npmjs.org/dotenv cache-miss
+29 http fetch GET 200 https://registry.npmjs.org/chokidar 146ms (cache miss)
+30 silly packumentCache full:https://registry.npmjs.org/chokidar set size:undefined disposed:false
+31 silly fetch manifest smol-toml@^1.6.1
+32 silly packumentCache full:https://registry.npmjs.org/smol-toml cache-miss
+33 http fetch GET 200 https://registry.npmjs.org/smol-toml 127ms (cache miss)
+34 silly packumentCache full:https://registry.npmjs.org/smol-toml set size:undefined disposed:false
+35 http fetch GET 200 https://registry.npmjs.org/@clack%2fprompts 717ms (cache miss)
+36 silly packumentCache full:https://registry.npmjs.org/@clack%2fprompts set size:undefined disposed:false
+37 http fetch GET 200 https://registry.npmjs.org/dotenv 850ms (cache miss)
+38 silly packumentCache full:https://registry.npmjs.org/dotenv set size:undefined disposed:false
+39 silly placeDep ROOT @clack/prompts@1.7.0 OK for: @keygraph/shannon@2.0.0 want: ^1.1.0
+40 silly placeDep ROOT chokidar@5.0.0 OK for: @keygraph/shannon@2.0.0 want: ^5.0.0
+41 silly placeDep ROOT dotenv@17.4.2 OK for: @keygraph/shannon@2.0.0 want: ^17.3.1
+42 silly placeDep ROOT smol-toml@1.7.0 OK for: @keygraph/shannon@2.0.0 want: ^1.6.1
+43 silly fetch manifest fast-string-width@^3.0.2
+44 silly packumentCache full:https://registry.npmjs.org/fast-string-width cache-miss
+45 silly fetch manifest fast-wrap-ansi@^0.2.0
+46 silly packumentCache full:https://registry.npmjs.org/fast-wrap-ansi cache-miss
+47 silly fetch manifest sisteransi@^1.0.5
+48 silly packumentCache full:https://registry.npmjs.org/sisteransi cache-miss
+49 http fetch GET 200 https://registry.npmjs.org/sisteransi 169ms (cache miss)
+50 silly packumentCache full:https://registry.npmjs.org/sisteransi set size:undefined disposed:false
+51 silly fetch manifest @clack/core@1.4.3
+52 silly packumentCache full:https://registry.npmjs.org/@clack%2fcore cache-miss
+53 http fetch GET 200 https://registry.npmjs.org/fast-wrap-ansi 289ms (cache miss)
+54 silly packumentCache full:https://registry.npmjs.org/fast-wrap-ansi set size:undefined disposed:false
+55 silly fetch manifest readdirp@^5.0.0
+56 silly packumentCache full:https://registry.npmjs.org/readdirp cache-miss
+57 http fetch GET 200 https://registry.npmjs.org/readdirp 119ms (cache miss)
+58 silly packumentCache full:https://registry.npmjs.org/readdirp set size:undefined disposed:false
+59 http fetch GET 200 https://registry.npmjs.org/fast-string-width 421ms (cache miss)
+60 silly packumentCache full:https://registry.npmjs.org/fast-string-width set size:undefined disposed:false
+61 http fetch GET 200 https://registry.npmjs.org/@clack%2fcore 917ms (cache miss)
+62 silly packumentCache full:https://registry.npmjs.org/@clack%2fcore set size:undefined disposed:false
+63 silly placeDep ROOT @clack/core@1.4.3 OK for: @clack/prompts@1.7.0 want: 1.4.3
+64 silly placeDep ROOT fast-string-width@3.0.2 OK for: @clack/prompts@1.7.0 want: ^3.0.2
+65 silly placeDep ROOT fast-wrap-ansi@0.2.2 OK for: @clack/prompts@1.7.0 want: ^0.2.0
+66 silly placeDep ROOT sisteransi@1.0.5 OK for: @clack/prompts@1.7.0 want: ^1.0.5
+67 silly fetch manifest fast-string-truncated-width@^3.0.2
+68 silly packumentCache full:https://registry.npmjs.org/fast-string-truncated-width cache-miss
+69 http fetch GET 200 https://registry.npmjs.org/fast-string-truncated-width 401ms (cache miss)
+70 silly packumentCache full:https://registry.npmjs.org/fast-string-truncated-width set size:undefined disposed:false
+71 silly placeDep ROOT readdirp@5.0.0 OK for: chokidar@5.0.0 want: ^5.0.0
+72 silly placeDep ROOT fast-string-truncated-width@3.0.3 OK for: fast-string-width@3.0.2 want: ^3.0.2
+73 silly reify moves {}
+74 silly audit bulk request {
+74 silly audit   '@keygraph/shannon': [ '2.0.0' ],
+74 silly audit   '@clack/prompts': [ '1.7.0' ],
+74 silly audit   chokidar: [ '5.0.0' ],
+74 silly audit   dotenv: [ '17.4.2' ],
+74 silly audit   'smol-toml': [ '1.7.0' ],
+74 silly audit   '@clack/core': [ '1.4.3' ],
+74 silly audit   'fast-string-width': [ '3.0.2' ],
+74 silly audit   'fast-wrap-ansi': [ '0.2.2' ],
+74 silly audit   sisteransi: [ '1.0.5' ],
+74 silly audit   readdirp: [ '5.0.0' ],
+74 silly audit   'fast-string-truncated-width': [ '3.0.3' ]
+74 silly audit }
+75 http cache @clack/core@https://registry.npmjs.org/@clack/core/-/core-1.4.3.tgz 0ms (cache hit)
+76 http cache readdirp@https://registry.npmjs.org/readdirp/-/readdirp-5.0.0.tgz 0ms (cache hit)
+77 http cache fast-string-truncated-width@https://registry.npmjs.org/fast-string-truncated-width/-/fast-string-truncated-width-3.0.3.tgz 0ms (cache hit)
+78 http cache fast-string-width@https://registry.npmjs.org/fast-string-width/-/fast-string-width-3.0.2.tgz 0ms (cache hit)
+79 http cache @clack/prompts@https://registry.npmjs.org/@clack/prompts/-/prompts-1.7.0.tgz 0ms (cache hit)
+80 http cache @keygraph/shannon@https://registry.npmjs.org/@keygraph/shannon/-/shannon-2.0.0.tgz 0ms (cache hit)
+81 http cache smol-toml@https://registry.npmjs.org/smol-toml/-/smol-toml-1.7.0.tgz 0ms (cache hit)
+82 http cache fast-wrap-ansi@https://registry.npmjs.org/fast-wrap-ansi/-/fast-wrap-ansi-0.2.2.tgz 0ms (cache hit)
+83 http cache dotenv@https://registry.npmjs.org/dotenv/-/dotenv-17.4.2.tgz 0ms (cache hit)
+84 silly tarball no local data for @clack/core@https://registry.npmjs.org/@clack/core/-/core-1.4.3.tgz. Extracting by manifest.
+85 http cache chokidar@https://registry.npmjs.org/chokidar/-/chokidar-5.0.0.tgz 0ms (cache hit)
+86 silly tarball no local data for readdirp@https://registry.npmjs.org/readdirp/-/readdirp-5.0.0.tgz. Extracting by manifest.
+87 silly tarball no local data for fast-string-truncated-width@https://registry.npmjs.org/fast-string-truncated-width/-/fast-string-truncated-width-3.0.3.tgz. Extracting by manifest.
+88 silly tarball no local data for fast-string-width@https://registry.npmjs.org/fast-string-width/-/fast-string-width-3.0.2.tgz. Extracting by manifest.
+89 silly tarball no local data for @clack/prompts@https://registry.npmjs.org/@clack/prompts/-/prompts-1.7.0.tgz. Extracting by manifest.
+90 silly tarball no local data for @keygraph/shannon@https://registry.npmjs.org/@keygraph/shannon/-/shannon-2.0.0.tgz. Extracting by manifest.
+91 http cache sisteransi@https://registry.npmjs.org/sisteransi/-/sisteransi-1.0.5.tgz 0ms (cache hit)
+92 silly tarball no local data for smol-toml@https://registry.npmjs.org/smol-toml/-/smol-toml-1.7.0.tgz. Extracting by manifest.
+93 silly tarball no local data for fast-wrap-ansi@https://registry.npmjs.org/fast-wrap-ansi/-/fast-wrap-ansi-0.2.2.tgz. Extracting by manifest.
+94 silly tarball no local data for dotenv@https://registry.npmjs.org/dotenv/-/dotenv-17.4.2.tgz. Extracting by manifest.
+95 silly tarball no local data for chokidar@https://registry.npmjs.org/chokidar/-/chokidar-5.0.0.tgz. Extracting by manifest.
+96 silly tarball no local data for sisteransi@https://registry.npmjs.org/sisteransi/-/sisteransi-1.0.5.tgz. Extracting by manifest.
+97 http fetch POST 200 https://registry.npmjs.org/-/npm/v1/security/advisories/bulk 809ms
+98 silly audit report {}
+99 http fetch GET 200 https://registry.npmjs.org/readdirp/-/readdirp-5.0.0.tgz 1349ms (cache miss)
+100 http fetch GET 200 https://registry.npmjs.org/sisteransi/-/sisteransi-1.0.5.tgz 1462ms (cache miss)
+101 http fetch GET 200 https://registry.npmjs.org/fast-wrap-ansi/-/fast-wrap-ansi-0.2.2.tgz 1887ms (cache miss)
+102 http fetch GET 200 https://registry.npmjs.org/fast-string-width/-/fast-string-width-3.0.2.tgz 1952ms (cache miss)
+103 http fetch GET 200 https://registry.npmjs.org/@clack/core/-/core-1.4.3.tgz 2083ms (cache miss)
+104 http fetch GET 200 https://registry.npmjs.org/fast-string-truncated-width/-/fast-string-truncated-width-3.0.3.tgz 2083ms (cache miss)
+105 http fetch GET 200 https://registry.npmjs.org/chokidar/-/chokidar-5.0.0.tgz 2204ms (cache miss)
+106 http fetch GET 200 https://registry.npmjs.org/@clack/prompts/-/prompts-1.7.0.tgz 2213ms (cache miss)
+107 http fetch GET 200 https://registry.npmjs.org/@keygraph/shannon/-/shannon-2.0.0.tgz 2228ms (cache miss)
+108 http fetch GET 200 https://registry.npmjs.org/dotenv/-/dotenv-17.4.2.tgz 2488ms (cache miss)
+109 http fetch GET 200 https://registry.npmjs.org/smol-toml/-/smol-toml-1.7.0.tgz 5552ms (cache miss)
+110 verbose cwd C:\Users\shema\Desktop\project\shaka
+111 verbose os Windows_NT 10.0.22621
+112 verbose node v22.16.0
+113 verbose npm  v11.4.2
+114 notice
+114 notice New minor version of npm available! 11.4.2 -> 11.18.0
+114 notice Changelog: https://github.com/npm/cli/releases/tag/v11.18.0
+114 notice To update run: npm install -g npm@11.18.0
+114 notice  { force: true, [Symbol(proc-log.meta)]: true }
+115 verbose exit 0
+116 info ok

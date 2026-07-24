@@ -166,7 +166,15 @@ export default function ProviderDashboard() {
 
 
 
+    dataFetchError,
+
+
+
     declineRequest,
+
+
+
+    isRetrying,
 
 
 
@@ -175,6 +183,10 @@ export default function ProviderDashboard() {
 
 
     pendingRequests,
+
+
+
+    paymentHistory,
 
 
 
@@ -195,6 +207,10 @@ export default function ProviderDashboard() {
 
 
     requests,
+
+
+
+    retryDataFetch,
 
 
 
@@ -424,6 +440,20 @@ export default function ProviderDashboard() {
 
           <StatsGrid cards={topStats} loading={statsLoading} />
 
+          {dataFetchError && (
+            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-sm text-red-700">{dataFetchError}</p>
+              <button
+                type="button"
+                onClick={retryDataFetch}
+                disabled={isRetrying}
+                className="mt-2 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isRetrying ? "Retrying..." : "Retry"}
+              </button>
+            </div>
+          )}
+
 
 
           <DashboardTabs
@@ -568,7 +598,7 @@ export default function ProviderDashboard() {
                         lastMonth: stats.lastMonthEarnings,
                         yearToDate: stats.yearToDateEarnings,
                         averageJobValue: stats.averageJobValue,
-                        recentPayments: []
+                        recentPayments: paymentHistory
                       }}
 
 
