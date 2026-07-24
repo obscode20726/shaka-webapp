@@ -44,7 +44,7 @@ export default function QuotesTab({ requests, statsLoading, onRequestUpdate }: P
     setPaymentModalOpen(true);
   };
 
-  const handlePaymentConfirm = async (paymentMethod: string) => {
+  const handlePaymentConfirm = async () => {
     if (!selectedRequest?.quote?.id) return;
 
     setIsProcessingPayment(true);

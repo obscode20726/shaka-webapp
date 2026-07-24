@@ -524,7 +524,7 @@ export function useProviderDashboardData() {
     }, 30000); // Poll every 30 seconds
 
     return () => clearInterval(pollInterval);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
 
 

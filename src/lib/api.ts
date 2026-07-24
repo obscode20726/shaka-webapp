@@ -3440,37 +3440,51 @@ export interface PaymentTransaction {
   serviceRequestId?: string;
 }
 
+interface PaymentHistoryBooking {
+  id: string;
+  amount?: number;
+  escrowStatus?: EscrowStatus | string;
+  scheduledAt?: string;
+  createdAt?: string;
+  serviceRequestId?: string;
+}
+
+interface PaymentHistoryServiceRequest {
+  id: string;
+  homeowner?: ServiceRequestHomeowner;
+}
+
 export const fetchPaymentHistory = async (): Promise<PaymentTransaction[]> => {
   try {
     const bookingsResponse = await apiRequest<unknown>("/api/bookings");
-    const bookings = unwrapArrayResponse<any>(bookingsResponse);
+    const bookings = unwrapArrayResponse<PaymentHistoryBooking>(bookingsResponse);
     
     // Fetch service requests to get homeowner information
-    let serviceRequestsData: any[] = [];
+    let serviceRequestsData: PaymentHistoryServiceRequest[] = [];
     try {
       const serviceRequestsResponse = await apiRequest<unknown>("/api/service-requests");
-      serviceRequestsData = unwrapArrayResponse<any>(serviceRequestsResponse);
+      serviceRequestsData = unwrapArrayResponse<PaymentHistoryServiceRequest>(serviceRequestsResponse);
     } catch {
       // Continue without homeowner data if service requests fail
     }
     
     // Create a map of serviceRequestId to homeowner data
-    const homeownerMap = new Map<string, any>();
-    serviceRequestsData.forEach((sr: any) => {
+    const homeownerMap = new Map<string, ServiceRequestHomeowner>();
+    serviceRequestsData.forEach((sr) => {
       if (sr.id && sr.homeowner) {
         homeownerMap.set(sr.id, sr.homeowner);
       }
     });
     
     // Transform bookings into payment transactions with homeowner data
-    return bookings.map((booking: any) => {
+    return bookings.map((booking) => {
       const homeowner = booking.serviceRequestId ? homeownerMap.get(booking.serviceRequestId) : null;
       return {
         id: booking.id,
         amount: booking.amount || 0,
         status: booking.escrowStatus === "released" ? "completed" : 
                 booking.escrowStatus === "pending" ? "pending" : "failed",
-        createdAt: booking.scheduledAt || booking.createdAt,
+        createdAt: booking.scheduledAt || booking.createdAt || "",
         bookingId: booking.id,
         serviceRequestId: booking.serviceRequestId,
         homeowner: homeowner ? {
