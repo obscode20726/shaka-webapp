@@ -7,6 +7,7 @@ import {
   parseHomeownerName,
 } from "./formatters";
 import type { ServiceRequest } from "./types";
+import { updateServiceRequestStatus } from "@/lib/api";
 
 type Props = {
   acceptedRequests: ServiceRequest[];
@@ -16,6 +17,7 @@ type Props = {
   onDecline: (id: string) => void;
   updatingRequestId: string | null;
   actionError?: string | null;
+  onStartJob?: (id: string) => void;
 };
 
 export default function RequestsTab({
@@ -26,6 +28,7 @@ export default function RequestsTab({
   onDecline,
   updatingRequestId,
   actionError,
+  onStartJob,
 }: Props) {
   return (
     <div className="mt-6 space-y-6">
@@ -79,7 +82,12 @@ export default function RequestsTab({
             <p className="py-4 text-sm text-black/60">No accepted jobs yet.</p>
           ) : (
             acceptedRequests.map((request) => (
-              <AcceptedRequestCard key={request.id} request={request} />
+              <AcceptedRequestCard
+                key={request.id}
+                request={request}
+                onStartJob={onStartJob}
+                isStarting={updatingRequestId === request.id}
+              />
             ))
           )}
         </div>
@@ -102,10 +110,11 @@ function NewRequestCard({
   const customerName = parseHomeownerName(request.homeowner);
   const priority = (request.priority || "normal").toLowerCase();
   const location = formatRequestLocation(request);
-  const phone = request.homeowner?.contactPhone?.trim() || 
+  const phone = request.homeowner?.contactPhone?.trim() ||
                 request.homeowner?.phone?.trim() ||
                 request.homeowner?.user?.phone?.trim();
   const rating = request.homeowner?.averageRating;
+  const profileImageUrl = request.homeowner?.profileImageUrl;
 
   const handleMessage = () => {
     if (phone) {
@@ -119,7 +128,7 @@ function NewRequestCard({
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-3">
-            <CustomerAvatar name={customerName} />
+            <CustomerAvatar name={customerName} profileImageUrl={profileImageUrl} />
             <div className="min-w-0">
               <p className="text-base font-semibold leading-tight text-black">
                 {customerName}
@@ -219,14 +228,23 @@ function NewRequestCard({
   );
 }
 
-function AcceptedRequestCard({ request }: { request: ServiceRequest }) {
+function AcceptedRequestCard({
+  request,
+  onStartJob,
+  isStarting,
+}: {
+  request: ServiceRequest;
+  onStartJob?: (id: string) => void;
+  isStarting?: boolean;
+}) {
   const customerName = parseHomeownerName(request.homeowner);
   const serviceTitle = request.service?.title || "Service";
   const statusLabel = formatAcceptedStatus(request.status);
   const location = formatRequestLocation(request);
-  const phone = request.homeowner?.contactPhone?.trim() || 
+  const phone = request.homeowner?.contactPhone?.trim() ||
                 request.homeowner?.phone?.trim() ||
                 request.homeowner?.user?.phone?.trim();
+  const profileImageUrl = request.homeowner?.profileImageUrl;
 
   const handleMessageCustomer = () => {
     if (phone) {
@@ -236,13 +254,12 @@ function AcceptedRequestCard({ request }: { request: ServiceRequest }) {
   };
 
   const handleStartJob = () => {
-    // Update request status to in-progress
-    // This would typically call an API endpoint to update the status
-    alert(`Starting job for ${customerName}`);
+    if (onStartJob) {
+      onStartJob(request.id);
+    }
   };
 
   const handleGetDirections = () => {
-    // Open Google Maps with the address
     const query = encodeURIComponent(location);
     window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
   };
@@ -251,7 +268,7 @@ function AcceptedRequestCard({ request }: { request: ServiceRequest }) {
     <article className="rounded-[9px] border border-[#cfdff2] bg-[#eef6ff] p-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <CustomerAvatar name={customerName} variant="accepted" />
+          <CustomerAvatar name={customerName} variant="accepted" profileImageUrl={profileImageUrl} />
           <div className="min-w-0">
             <p className="text-base font-semibold leading-tight text-black">
               {customerName}
@@ -289,9 +306,10 @@ function AcceptedRequestCard({ request }: { request: ServiceRequest }) {
         <button
           type="button"
           onClick={handleStartJob}
-          className="inline-flex h-8 items-center rounded-lg border border-black/10 bg-white px-4 text-sm font-medium text-black hover:bg-black/[.02]"
+          disabled={isStarting}
+          className="inline-flex h-8 items-center rounded-lg border border-black/10 bg-white px-4 text-sm font-medium text-black hover:bg-black/[.02] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Start Job
+          {isStarting ? "Starting..." : "Start Job"}
         </button>
         <button
           type="button"
@@ -308,11 +326,21 @@ function AcceptedRequestCard({ request }: { request: ServiceRequest }) {
 function CustomerAvatar({
   name,
   variant = "new",
+  profileImageUrl,
 }: {
   name: string;
   variant?: "new" | "accepted";
+  profileImageUrl?: string;
 }) {
   const initial = name.slice(0, 1).toUpperCase();
+
+  if (profileImageUrl) {
+    return (
+      <div className="flex h-10 w-10 shrink-0 overflow-hidden rounded-full">
+        <img src={profileImageUrl} alt={name} className="h-full w-full object-cover" />
+      </div>
+    );
+  }
 
   if (variant === "accepted") {
     return (

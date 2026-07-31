@@ -4,6 +4,7 @@ export type HomeownerProfile = {
   address?: string;
   contactEmail?: string;
   contactPhone?: string;
+  profileImageUrl?: string;
 };
 
 export type Quote = {
@@ -34,6 +35,12 @@ export type ServiceRequest = {
     firstName: string;
     lastName: string;
     businessName?: string;
+    phone?: string;
+    contactPhone?: string;
+    profileImageUrl?: string;
+    user?: {
+      phone?: string;
+    };
   };
   quote?: Quote;
 };
@@ -46,6 +53,12 @@ export type Booking = {
     firstName: string;
     lastName: string;
     businessName?: string;
+    phone?: string;
+    contactPhone?: string;
+    profileImageUrl?: string;
+    user?: {
+      phone?: string;
+    };
   };
   serviceRequest?: ServiceRequest;
 };

@@ -73,7 +73,6 @@ export default function HomeownerSignIn() {
 
       // ✅ FIXED redirect
       router.push("/homeowner/dashboard");
-      console.log("DATA:", data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Login failed";
       setError(message);

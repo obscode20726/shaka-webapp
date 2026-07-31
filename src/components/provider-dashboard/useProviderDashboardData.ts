@@ -205,6 +205,8 @@ export function useProviderDashboardData() {
           serviceRequests =
 
             (await fetchServiceRequestsForProvider()) as ServiceRequest[];
+          // Add delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 300));
 
         } catch (err) {
           const message =
@@ -253,61 +255,30 @@ export function useProviderDashboardData() {
 
 
 
-        try {
-
-          const response = await apiRequest("/bookings");
-
-          const typedBookings = unwrapArrayResponse<Booking>(response);
-
-          if (typedBookings.length > 0) {
-
-            const now = new Date();
-
-            upcomingJobs = typedBookings.filter(
-
-              (booking) => new Date(booking.scheduledAt) > now,
-
-            ).length;
-
-            jobsCompleted = typedBookings.filter(
-
-              (booking) => booking.escrowStatus === "released",
-
-            ).length;
-
-            setBookings(typedBookings);
-
-          }
-
-        } catch (err) {
-          const message =
-            err instanceof Error ? err.message : "Unable to load bookings";
-          const lowerMessage = message.toLowerCase();
-          if (
-            lowerMessage.includes("unauthorized") ||
-            lowerMessage.includes("token") ||
-            lowerMessage.includes("forbidden")
-          ) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            document.cookie =
-              "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-            window.location.href = "/signin/provider";
-          }
-        }
-
+        let typedBookings: Booking[] = [];
         let monthlyEarnings = 0;
         let lastMonthEarnings = 0;
         let yearToDateEarnings = 0;
         let averageJobValue = 0;
 
-        // Calculate monthly earnings from bookings
         try {
           const response = await apiRequest("/bookings");
-          const typedBookings = unwrapArrayResponse<Booking>(response);
-          
+          typedBookings = unwrapArrayResponse<Booking>(response);
+
           if (typedBookings.length > 0) {
             const now = new Date();
+
+            upcomingJobs = typedBookings.filter(
+              (booking) => new Date(booking.scheduledAt) > now,
+            ).length;
+
+            jobsCompleted = typedBookings.filter(
+              (booking) => booking.escrowStatus === "released",
+            ).length;
+
+            setBookings(typedBookings);
+
+            // Calculate earnings from the same bookings data
             const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             const currentYear = now.getFullYear();
             
@@ -344,9 +315,12 @@ export function useProviderDashboardData() {
             const totalAmount = bookingsWithAmounts.reduce((sum: number, booking: Booking) => sum + (booking.amount || 0), 0);
             averageJobValue = bookingsWithAmounts.length > 0 ? totalAmount / bookingsWithAmounts.length : 0;
           }
+          // Add delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 300));
+
         } catch (err) {
           const message =
-            err instanceof Error ? err.message : "Unable to calculate monthly earnings";
+            err instanceof Error ? err.message : "Unable to load bookings";
           const lowerMessage = message.toLowerCase();
           if (
             lowerMessage.includes("unauthorized") ||
@@ -616,6 +590,11 @@ export function useProviderDashboardData() {
 
   );
 
+  const startJob = React.useCallback(
+    (id: string) => updateRequestStatus(id, "in_progress"),
+    [updateRequestStatus],
+  );
+
   const retryDataFetch = React.useCallback(async () => {
     setIsRetrying(true);
     setDataFetchError(null);
@@ -662,6 +641,8 @@ export function useProviderDashboardData() {
     requests,
 
     retryDataFetch,
+
+    startJob,
 
     stats: liveStats,
 

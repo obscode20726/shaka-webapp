@@ -15,6 +15,7 @@ export type ProviderProfile = {
   primaryService?: string;
   yearsExperience?: number;
   averageRating?: number;
+  profileImageUrl?: string;
 };
 
 export type ServiceRequest = {
@@ -39,6 +40,7 @@ export type ServiceRequest = {
     contactPhone?: string;
     phone?: string;
     averageRating?: number;
+    profileImageUrl?: string;
     user?: {
       phone?: string;
     };

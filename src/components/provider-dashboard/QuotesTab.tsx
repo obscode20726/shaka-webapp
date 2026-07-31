@@ -5,19 +5,6 @@ import { submitQuote } from "@/lib/api";
 
 type Props = { requests: ServiceRequest[]; statsLoading: boolean };
 
-const plumbingMaterials = [
-  "PVC pipes",
-  "Copper pipes",
-  "Pipe fittings",
-  "Faucet seals",
-  "Plumber's tape",
-  "Silicone sealant",
-  "Washers & O-rings",
-  "Water valves",
-  "Drain pipes",
-  "Flexible hoses",
-];
-
 const fieldClass =
   "mt-1.5 w-full rounded-[9px] border border-transparent bg-[#f3f3f5] px-3.5 py-3 text-sm text-[#111827] outline-none placeholder:text-[#68738b] focus:border-[#ff6b00] focus:bg-white focus:ring-2 focus:ring-[#ff6b00]/15";
 
@@ -79,6 +66,7 @@ export default function QuotesTab({ requests, statsLoading }: Props) {
         amount: totalAmount,
         description: quoteDescription,
         estimatedDuration: quoteDuration,
+        materials: selectedMaterials.length > 0 ? selectedMaterials : undefined,
       });
       resetQuote();
     } catch (error) {
@@ -144,17 +132,46 @@ export default function QuotesTab({ requests, statsLoading }: Props) {
 
               <div className="mt-4">
                 <p className="text-sm font-semibold">Materials &amp; Equipment</p>
-                <p className="text-xs text-[#68738b]">Select materials needed for this job (click to toggle)</p>
+                <p className="text-xs text-[#68738b]">List materials needed for this job (optional)</p>
                 <div className="mt-3 rounded-xl border border-[#d9dce1] bg-[#fafbfc] p-4">
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {plumbingMaterials.map((material) => {
-                      const checked = selectedMaterials.includes(material);
-                      return <button key={material} type="button" onClick={() => toggleMaterial(material)} className={`flex min-h-10 items-center gap-2 rounded-[5px] border px-2.5 py-2 text-left text-sm font-medium ${checked ? "border-[#ff9b4a] bg-[#fff8ef]" : "border-[#e1e4e9] bg-white hover:border-[#c7ccd5]"}`}><span className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border ${checked ? "border-[#02040a] bg-[#02040a] text-white" : "border-[#dfe2e6] bg-[#f6f6f7]"}`}>{checked ? "✓" : ""}</span>{material}</button>;
-                    })}
-                  </div>
+                  {selectedMaterials.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedMaterials.map((material) => (
+                        <button
+                          key={material}
+                          type="button"
+                          onClick={() => toggleMaterial(material)}
+                          className="rounded-full border border-[#6ee69a] bg-white px-3 py-1.5 text-sm text-[#1f344d]"
+                        >
+                          {material} <span className="ml-1 text-[#008a3b]">×</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#68738b]">No materials added yet</p>
+                  )}
                 </div>
-                {selectedMaterials.length ? <div className="mt-3 rounded-[10px] border border-[#91ebae] bg-[#effff4] p-3"><p className="text-sm font-medium text-[#006b2e]">Selected Materials ({selectedMaterials.length}):</p><div className="mt-2 flex flex-wrap gap-2">{selectedMaterials.map((material) => <button key={material} type="button" onClick={() => toggleMaterial(material)} className="rounded-full border border-[#6ee69a] bg-white px-3 py-1.5 text-sm text-[#1f344d]">{material} <span className="ml-1 text-[#008a3b]">×</span></button>)}</div></div> : null}
-                <div className="mt-3 flex gap-2"><input value={customMaterial} onChange={(event) => setCustomMaterial(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addCustomMaterial(); } }} className="min-w-0 flex-1 rounded-[9px] border border-transparent bg-[#f3f3f5] px-3.5 py-2.5 text-sm outline-none placeholder:text-[#68738b] focus:border-[#ff6b00]" placeholder="Add custom material not in the list..." /><button type="button" onClick={addCustomMaterial} className="rounded-[9px] bg-[#ff6a00] px-4 text-sm font-semibold text-white hover:bg-[#e85f00]">＋ Add</button></div>
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={customMaterial}
+                    onChange={(event) => setCustomMaterial(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addCustomMaterial();
+                      }
+                    }}
+                    className="min-w-0 flex-1 rounded-[9px] border border-transparent bg-[#f3f3f5] px-3.5 py-2.5 text-sm outline-none placeholder:text-[#68738b] focus:border-[#ff6b00]"
+                    placeholder="Add material (e.g., PVC pipes, paint, tools)..."
+                  />
+                  <button
+                    type="button"
+                    onClick={addCustomMaterial}
+                    className="rounded-[9px] bg-[#ff6a00] px-4 text-sm font-semibold text-white hover:bg-[#e85f00]"
+                  >
+                    ＋ Add
+                  </button>
+                </div>
               </div>
 
               <div className="mt-4"><label htmlFor="valid-until" className="block text-sm font-semibold">Quote Valid Until</label><input id="valid-until" type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} className={fieldClass} /></div>

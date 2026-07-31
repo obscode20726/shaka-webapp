@@ -41,6 +41,30 @@ export function useHomeownerDashboardData() {
     }
   }, []);
 
+  const refreshBookings = React.useCallback(async () => {
+    try {
+      const response = await apiRequest("/bookings");
+      if (Array.isArray(response)) {
+        setBookings(response as Booking[]);
+      }
+    } catch {
+      // Unable to refresh bookings
+    }
+  }, []);
+
+  const refreshAll = React.useCallback(async () => {
+    await Promise.all([refreshRequests(), refreshBookings()]);
+  }, [refreshRequests, refreshBookings]);
+
+  const refreshProfile = React.useCallback(async () => {
+    try {
+      const userProfile = await apiRequest<UserMeResponse>("/users/me");
+      setProfile(userProfile.homeownerProfile ?? null);
+    } catch {
+      // Unable to refresh profile
+    }
+  }, []);
+
   React.useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -79,6 +103,8 @@ export function useHomeownerDashboardData() {
         let serviceRequests: ServiceRequest[] = [];
         try {
           serviceRequests = (await fetchServiceRequests()) as ServiceRequest[];
+          // Add delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 300));
         } catch {
           // Unable to load service requests
         }
@@ -101,6 +127,8 @@ export function useHomeownerDashboardData() {
           if (Array.isArray(response)) {
             setBookings(response as Booking[]);
           }
+          // Add delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 300));
         } catch {
           // Unable to load bookings
         }
@@ -148,5 +176,8 @@ export function useHomeownerDashboardData() {
     stats,
     statsLoading,
     refreshRequests,
+    refreshBookings,
+    refreshAll,
+    refreshProfile,
   };
 }

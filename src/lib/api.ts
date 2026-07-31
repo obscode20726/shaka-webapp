@@ -2127,6 +2127,10 @@ export interface SubmitQuotePayload {
 
 
 
+  materials?: string[];
+
+
+
 }
 
 
@@ -3312,11 +3316,14 @@ export const updateWeeklyAvailability = async (
 
 const shouldSendAuth = true;
 
-export const uploadProfilePicture = async (file: File): Promise<{ url?: string }> => {
+const uploadProfileImageInternal = async (
+  file: File,
+  options: { checkApiUrl: boolean; useAuthGuard: boolean }
+): Promise<{ profileImageUrl?: string }> => {
   const formData = new FormData();
   formData.append("image", file);
 
-  if (!API_URL) {
+  if (options.checkApiUrl && !API_URL) {
     throw new Error("Missing NEXT_PUBLIC_API_URL environment variable");
   }
 
@@ -3326,7 +3333,8 @@ export const uploadProfilePicture = async (file: File): Promise<{ url?: string }
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      ...(shouldSendAuth && !USE_PROXY && token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.useAuthGuard && shouldSendAuth && !USE_PROXY && token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(!options.useAuthGuard && token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: formData,
   });
@@ -3336,27 +3344,22 @@ export const uploadProfilePicture = async (file: File): Promise<{ url?: string }
     throw new Error(errorText || `Upload failed with status ${res.status}`);
   }
 
-  const text = await res.text();
-  let data: unknown = null;
-
+  let data;
   try {
-    data = text ? JSON.parse(text) : null;
+    data = await res.json();
   } catch {
-    data = null;
+    throw new Error("Upload succeeded but response was not valid JSON");
   }
-  const record = typeof data === "object" && data ? data as Record<string, unknown> : {};
-  const providerProfile =
-    typeof record.provider_profile === "object" && record.provider_profile
-      ? record.provider_profile as Record<string, unknown>
-      : {};
 
-  return {
-    url:
-      readString(record.url) ??
-      readString(record.imageUrl) ??
-      readString(record.profileImageUrl) ??
-      readString(providerProfile.profileImageUrl),
-  };
+  if (data.profileImageUrl) {
+    return { profileImageUrl: data.profileImageUrl };
+  }
+  throw new Error("Upload succeeded but no profile image URL was returned");
+};
+
+export const uploadProfilePicture = async (file: File): Promise<{ url?: string }> => {
+  const result = await uploadProfileImageInternal(file, { checkApiUrl: true, useAuthGuard: true });
+  return { url: result.profileImageUrl };
 };
 
 export const uploadPortfolioImage = async (file: File): Promise<{ url: string }> => {
@@ -3644,4 +3647,120 @@ export const fetchAdminDisputes = async (): Promise<AdminDispute[]> => {
 };
 
 
+
+export interface UpdateHomeownerProfilePayload {
+  fullName?: string;
+  city?: string;
+  address?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  ownerStats?: {
+    upcomingBookings?: number;
+    jobsInProgress?: number;
+    completedJobs?: number;
+    totalAmountSpent?: number;
+  };
+}
+
+export const updateHomeownerProfile = async (
+  payload: UpdateHomeownerProfilePayload,
+): Promise<UserMeResponse> => {
+  return apiRequest<UserMeResponse>("/api/homeowners", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const updateHomeownerProfileImage = async (imageFile: File): Promise<{ success: boolean; imageUrl?: string }> => {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+
+  const url = buildApiUrl("/api/v1/homeowner/profile-image");
+  const token = !USE_PROXY ? localStorage.getItem("token") : null;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || `Failed to upload image: ${res.status}`);
+  }
+
+  const data = await res.json();
+  // Handle the actual response structure from the server
+  if (data.profileImageUrl) {
+    return { success: true, imageUrl: data.profileImageUrl };
+  }
+  return { success: false };
+};
+
+export const updateProviderProfileImage = async (imageFile: File): Promise<{ success: boolean; imageUrl?: string }> => {
+  try {
+    const result = await uploadProfileImageInternal(imageFile, { checkApiUrl: false, useAuthGuard: false });
+    return { success: true, imageUrl: result.profileImageUrl };
+  } catch {
+    return { success: false };
+  }
+};
+
+export interface RescheduleBookingPayload {
+
+  bookingId: string;
+
+  newScheduledAt: string;
+
+  reason?: string;
+
+}
+
+export const rescheduleBooking = async (
+
+  payload: RescheduleBookingPayload,
+
+): Promise<BookingResponse> => {
+
+  return apiRequest<BookingResponse>(`/api/bookings/${encodeURIComponent(payload.bookingId)}/reschedule`, {
+
+    method: "PATCH",
+
+    body: JSON.stringify({
+
+      newScheduledAt: payload.newScheduledAt,
+
+      reason: payload.reason,
+
+    }),
+
+  });
+
+};
+
+export const cancelBooking = async (bookingId: string): Promise<{ success: boolean }> => {
+
+  return apiRequest<{ success: boolean }>(`/api/bookings/${encodeURIComponent(bookingId)}/cancel`, {
+
+    method: "PATCH",
+
+    body: JSON.stringify({ status: "cancelled" }),
+
+  });
+
+};
+
+export const cancelServiceRequest = async (serviceRequestId: string): Promise<{ success: boolean }> => {
+
+  return apiRequest<{ success: boolean }>(`/api/service-requests/${encodeURIComponent(serviceRequestId)}/cancel`, {
+
+    method: "PATCH",
+
+    body: JSON.stringify({ status: "cancelled" }),
+
+  });
+
+};
 

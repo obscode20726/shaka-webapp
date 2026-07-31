@@ -1,14 +1,18 @@
 import { useState, useRef, useEffect } from "react";
-import Image from "next/image";
 import { uploadProfilePicture, uploadPortfolioImage, fetchPaymentMethods, addPaymentMethod, deletePaymentMethod, setDefaultPaymentMethod, type AddPaymentMethodPayload, type PaymentMethod } from "@/lib/api";
+import type { ProviderProfile } from "./types";
 
-export default function ProfileTab() {
+type Props = {
+  profile: ProviderProfile | null;
+};
+
+export default function ProfileTab({ profile }: Props) {
   const [activeTab, setActiveTab] = useState<"pictures" | "payment">(
     "pictures",
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const portfolioInputRef = useRef<HTMLInputElement>(null);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(profile?.profileImageUrl || null);
   const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploadingProfile, setIsUploadingProfile] = useState(false);
@@ -24,6 +28,13 @@ export default function ProfileTab() {
   const [newPaymentAccountName, setNewPaymentAccountName] = useState("");
   const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  // Update profile image when profile data changes
+  useEffect(() => {
+    if (profile?.profileImageUrl) {
+      setProfileImage(profile.profileImageUrl);
+    }
+  }, [profile?.profileImageUrl]);
 
   useEffect(() => {
     if (activeTab === "payment") {
@@ -214,11 +225,9 @@ export default function ProfileTab() {
               {/* Preview circle */}
               <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full bg-black/8">
                 {profileImage ? (
-                  <Image
+                  <img
                     src={profileImage}
                     alt="Profile"
-                    width={80}
-                    height={80}
                     className="h-20 w-20 rounded-full object-cover"
                   />
                 ) : (
@@ -321,11 +330,9 @@ export default function ProfileTab() {
                   key={i}
                   className="relative h-20 w-20 overflow-hidden rounded-xl"
                 >
-                  <Image
+                  <img
                     src={src}
                     alt={`Portfolio ${i + 1}`}
-                    width={80}
-                    height={80}
                     className="h-full w-full object-cover"
                   />
                   <button

@@ -2,6 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 
 const navLinks = [
   { href: "#", label: "Search" },
@@ -13,26 +14,46 @@ const navLinks = [
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const { scrollY } = useScroll();
+  
+  // Header shrinks on scroll down, expands on scroll up
+  const headerHeight = useTransform(scrollY, [0, 100], [64, 56]);
+  const headerPadding = useTransform(scrollY, [0, 100], ['1rem', '0.75rem']);
+  const logoScale = useTransform(scrollY, [0, 100], [1, 0.9]);
+  const headerOpacity = useTransform(scrollY, [0, 50], [1, 0.95]);
 
   const closeMenu = () => setIsMenuOpen(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b border-black/[.06]">
+    <motion.header 
+      className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b border-black/[.06]"
+      style={{
+        height: isMenuOpen ? 'auto' : headerHeight,
+        opacity: headerOpacity,
+      }}
+    >
       <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+        <motion.div 
+          className="flex items-center justify-between"
+          style={{
+            padding: headerPadding,
+          }}
+        >
           <Link
             href="/"
             className="flex items-center gap-2 select-none"
             onClick={closeMenu}
           >
-            <Image
-              src="/Shaka logo 1.svg"
-              alt="Shaka"
-              width={133}
-              height={37}
-              className="h-9 w-auto"
-              priority
-            />
+            <motion.div style={{ scale: logoScale }}>
+              <Image
+                src="/Shaka logo 1.svg"
+                alt="Shaka"
+                width={133}
+                height={37}
+                className="h-9 w-auto"
+                priority
+              />
+            </motion.div>
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm text-black/80">
             {navLinks.map((link) => (
@@ -85,7 +106,7 @@ export default function Header() {
               Get Started
             </Link>
           </div>
-        </div>
+        </motion.div>
 
         <div
           id="mobile-navigation"
@@ -126,6 +147,6 @@ export default function Header() {
           </nav>
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 }

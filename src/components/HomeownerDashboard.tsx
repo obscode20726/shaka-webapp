@@ -35,6 +35,8 @@ export default function HomeownerDashboard() {
     stats,
     statsLoading,
     refreshRequests,
+    refreshAll,
+    refreshProfile,
   } = useHomeownerDashboardData();
 
   if (isBookingFlowOpen) {
@@ -65,13 +67,14 @@ export default function HomeownerDashboard() {
               bookings={bookings}
               requests={requests}
               statsLoading={statsLoading}
+              onRefresh={refreshAll}
             />
           ) : activeTab === 2 ? (
             <FavoritesTab requests={requests} statsLoading={statsLoading} />
           ) : activeTab === 3 ? (
             <PaymentsTab payments={payments} statsLoading={statsLoading} />
           ) : activeTab === 4 ? (
-            <SettingsTab loading={loading} profile={profile} />
+            <SettingsTab loading={loading} profile={profile} onProfileUpdate={refreshProfile} />
           ) : (
             <EmptyTab label={homeownerTabs[activeTab]} />
           )}

@@ -11,14 +11,19 @@ Build Shaka, a Next.js web application with multi-role dashboards (admin, homeow
 - Project is on main branch, synced with origin/main (no vscode-changes branch exists in repository)
 - TypeScript compilation passes with no errors
 - All provider dashboard API integrations completed
+- All homeowner dashboard API integrations completed
 
 ## Active Files
-- `src/components/provider-dashboard/QuotesTab.tsx` - Added quote submission modal with API integration and WhatsApp messaging
-- `src/components/provider-dashboard/DashboardHeader.tsx` - Added availability toggle with API integration
-- `src/components/provider-dashboard/ScheduleTab.tsx` - Added save availability API integration with loading states
-- `src/components/provider-dashboard/ProfileTab.tsx` - Added profile picture, portfolio upload, and payment methods with full API integration
-- `src/lib/api.ts` - Added submitQuote, updateProviderAvailability, updateWeeklyAvailability, uploadProfilePicture, uploadPortfolioImage, and payment methods API functions
-- `src/components/provider-dashboard/EarningsTab.tsx` - Removed debug console.log statements
+- `src/components/homeowner-dashboard/SettingsTab.tsx` - Implemented profile save functionality with API integration and profile image upload
+- `src/components/homeowner-dashboard/BookingsTab.tsx` - Added backend integration for Message, Call, Reschedule, and Cancel actions
+- `src/components/provider-dashboard/RequestsTab.tsx` - Implemented actual status update for "Start Job" button
+- `src/components/provider-dashboard/QuotesTab.tsx` - Simplified quote form by removing hardcoded plumbing materials
+- `src/lib/api.ts` - Added updateHomeownerProfile, updateHomeownerProfileImage, updateProviderProfileImage, rescheduleBooking, cancelBooking, cancelServiceRequest API functions
+- `src/components/homeowner-dashboard/useHomeownerDashboardData.ts` - Added refreshProfile and refreshRequest functions
+- `src/components/provider-dashboard/useProviderDashboardData.ts` - Added startJob function with loading state
+- `src/components/homeowner-dashboard/types.ts` - Added profileImageUrl to HomeownerProfile and provider objects
+- `src/components/provider-dashboard/types.ts` - Added profileImageUrl to ProviderProfile and homeowner objects
+- `src/app/layout.tsx` - Fixed Next.js 15 viewport configuration warning
 
 ## Changes Made
 - Fixed TypeScript error in provider-dashboard (latest commit)
@@ -36,6 +41,24 @@ Build Shaka, a Next.js web application with multi-role dashboards (admin, homeow
 - **COMPLETED: Added profile picture upload API integration in ProfileTab**
 - **COMPLETED: Added portfolio upload API integration in ProfileTab**
 - **COMPLETED: Implemented payment methods functionality in ProfileTab with add, delete, and set default**
+- **COMPLETED: Added fetchPaymentHistory API function to api.ts using /api/bookings endpoint**
+- **COMPLETED: Integrated payment history fetching in useProviderDashboardData hook**
+- **COMPLETED: Connected payment history data to EarningsTab component**
+- **COMPLETED: Added real-time updates via 30-second polling for dashboard data**
+- **COMPLETED: Enhanced error handling with retry functionality and visual error display**
+- **COMPLETED: Fixed API endpoint fallbacks to use /api prefix in fetchServiceRequestsForProvider**
+- **COMPLETED: Implemented homeowner profile save functionality in SettingsTab with POST /api/homeowners**
+- **COMPLETED: Added homeowner profile image upload with POST /api/v1/homeowner/profile-image**
+- **COMPLETED: Implemented homeowner Bookings Tab backend integration (Message, Call, Reschedule, Cancel)**
+- **COMPLETED: Implemented provider "Start Job" button with actual status update functionality**
+- **COMPLETED: Simplified provider quote form by removing hardcoded plumbing materials**
+- **COMPLETED: Added provider profile image upload with POST /api/v1/provider/profile-image**
+- **COMPLETED: Implemented profile picture persistence across refreshes for both homeowner and provider**
+- **COMPLETED: Added profile picture display in homeowner QuotesTab, BookingsTab (upcoming, in-progress, completed)**
+- **COMPLETED: Added profile picture display in provider RequestsTab (new and accepted requests)**
+- **COMPLETED: Added rate limiting delays (200-300ms) to reduce 429 errors from backend**
+- **COMPLETED: Fixed Next.js 15 viewport configuration warning by moving viewport to separate export**
+- **COMPLETED: Removed debug console.log statement from HomeownerSignIn component**
 
 ## Failed Attempts
 None documented in recent commits.
@@ -47,18 +70,29 @@ All pending provider dashboard functionality has been implemented. The provider 
 - Profile and portfolio image uploads
 - Payment methods management
 
+All critical homeowner dashboard functionality has been implemented. The homeowner dashboard is now feature-complete with full API integrations for:
+- Profile settings save functionality
+- Profile image upload with persistence
+- Bookings management (Message, Call, Reschedule, Cancel)
+
+Profile pictures are now fully functional for both homeowner and provider, with:
+- Upload functionality via dedicated API endpoints
+- Persistence across page refreshes
+- Display in relevant dashboard components
+- Cross-visibility (homeowners see provider pictures, providers see homeowner pictures)
+
 ## UX Issues Identified (From Code Review)
 
-### Data Flow Issues
-1. **Empty Payment History** - EarningsTab.tsx shows empty recentPayments array, needs transaction history implementation
-2. **No Real-time Updates** - Dashboards don't refresh when data changes, need polling or WebSocket integration
-3. **Limited Error Handling** - Some components lack proper error states and user feedback
+### Data Flow Issues (COMPLETED)
+1. ~~**Empty Payment History** - EarningsTab.tsx shows empty recentPayments array, needs transaction history implementation~~
+2. ~~**No Real-time Updates** - Dashboards don't refresh when data changes, need polling or WebSocket integration~~
+3. ~~**Limited Error Handling** - Some components lack proper error states and user feedback~~
 
-### Critical Non-Functional Features
-1. **Homeowner Settings Tab** - No save functionality implemented in SettingsTab.tsx
-2. **Homeowner Bookings Tab** - All action buttons (Message, Call, Reschedule, Cancel) are UI-only with no backend integration
-3. **Provider "Start Job" Button** - Only shows alert, no actual status update functionality in RequestsTab.tsx
-4. **Provider Quote Form** - Overly complex with hardcoded plumbing materials, needs simplification for general services
+### Critical Non-Functional Features (COMPLETED)
+1. ~~**Homeowner Settings Tab** - No save functionality implemented in SettingsTab.tsx~~
+2. ~~**Homeowner Bookings Tab** - All action buttons (Message, Call, Reschedule, Cancel) are UI-only with no backend integration~~
+3. ~~**Provider "Start Job" Button** - Only shows alert, no actual status update functionality in RequestsTab.tsx~~
+4. ~~**Provider Quote Form** - Overly complex with hardcoded plumbing materials, needs simplification for general services~~
 
 ### UX Improvements Needed
 1. **Loading States** - Many components use simple text instead of skeleton screens for better UX

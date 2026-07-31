@@ -21,7 +21,6 @@ export default function Footer() {
                 alt="Shaka"
                 width={133}
                 height={37}
-                className="h-[37px] w-auto"
                 priority
               />
             </Link>

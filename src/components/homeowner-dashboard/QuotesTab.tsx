@@ -27,7 +27,10 @@ export default function QuotesTab({ requests, statsLoading, onRequestUpdate }: P
         try {
           const quotes = await fetchQuotesForServiceRequest(request.id);
           newQuotesMap[request.id] = quotes;
-        } catch {
+          // Add small delay between requests to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (error) {
+          console.error(`Failed to fetch quotes for request ${request.id}:`, error);
           newQuotesMap[request.id] = [];
         }
       }
@@ -152,10 +155,19 @@ export default function QuotesTab({ requests, statsLoading, onRequestUpdate }: P
                     </span>
                   </div>
                   {request.provider ? (
-                    <p className="mt-2 text-sm text-black/70">
-                      Provider: {request.provider.firstName}{" "}
-                      {request.provider.lastName}
-                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      {request.provider.profileImageUrl && (
+                        <img
+                          src={request.provider.profileImageUrl}
+                          alt={`${request.provider.firstName} ${request.provider.lastName}`}
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      )}
+                      <p className="text-sm text-black/70">
+                        Provider: {request.provider.firstName}{" "}
+                        {request.provider.lastName}
+                      </p>
+                    </div>
                   ) : null}
                   <p className="text-sm text-black/70">
                     Location: {request.city}

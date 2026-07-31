@@ -214,6 +214,10 @@ export default function ProviderDashboard() {
 
 
 
+    startJob,
+
+
+
     stats,
 
 
@@ -552,6 +556,10 @@ export default function ProviderDashboard() {
 
 
 
+              onStartJob={startJob}
+
+
+
             />
 
 
@@ -610,7 +618,7 @@ export default function ProviderDashboard() {
 
 
 
-            <ProfileTab />
+            <ProfileTab profile={profile} />
 
 
 

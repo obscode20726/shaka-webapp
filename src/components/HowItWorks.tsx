@@ -1,14 +1,8 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  sectionContainerVariants,
-  sectionHeaderVariants,
-  cardVariants,
-  cardHoverVariants,
-} from "@/lib/animations/variants";
+import StackedStepCards from "@/components/StackedStepCards";
 
 const homeownerSteps = [
   {
@@ -54,28 +48,34 @@ export default function HowItWorks() {
   const steps = audience === "homeowners" ? homeownerSteps : providerSteps;
 
   return (
-    <section className="bg-[#F9FAFB] py-12 sm:py-16">
-      <motion.div
-        className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8"
-        variants={sectionContainerVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ margin: "-100px" }}
-      >
+    <section className="bg-[#F9FAFB]">
+      <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-8">
         <motion.h2
-          variants={sectionHeaderVariants}
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           className="text-center text-[22px] sm:text-[26px] font-semibold text-black"
         >
           How Shaka Works
         </motion.h2>
         <motion.p
-          variants={sectionHeaderVariants}
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
           className="text-center text-sm text-black/60 mt-1"
         >
           Simple, secure, and reliable for both homeowners and service providers
         </motion.p>
 
-        <motion.div variants={sectionHeaderVariants} className="mt-6 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.6, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-6 flex items-center justify-center"
+        >
           <div className="inline-flex rounded-full bg-[#ECECF0] p-1 border border-black/10">
             <button
               type="button"
@@ -101,47 +101,21 @@ export default function HowItWorks() {
             </button>
           </div>
         </motion.div>
+      </div>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={audience}
-            variants={sectionContainerVariants}
-            initial="hidden"
-            animate="visible"
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4"
-          >
-            {steps.map((s, idx) => (
-              <motion.article
-                key={s.title}
-                variants={cardVariants}
-                className="rounded-xl border border-black/[.08] bg-white p-5 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                whileHover="hover"
-              >
-                <motion.div
-                  variants={cardHoverVariants}
-                  className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#fff5ee]"
-                >
-                  <Image
-                    src={s.iconSrc}
-                    alt=""
-                    width={24}
-                    height={24}
-                    className="h-6 w-6"
-                    aria-hidden="true"
-                  />
-                </motion.div>
-                <p className="text-xs uppercase tracking-wide text-[#ff6a00]">
-                  Step {idx + 1}
-                </p>
-                <h3 className="mt-1 font-semibold text-black">{s.title}</h3>
-                <p className="mt-1 text-sm text-black/60">{s.desc}</p>
-              </motion.article>
-            ))}
-          </motion.div>
-        </AnimatePresence>
-      </motion.div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={audience}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.35 }}
+        >
+          <StackedStepCards steps={steps} />
+        </motion.div>
+      </AnimatePresence>
+
+      <div className="h-16 sm:h-24" aria-hidden="true" />
     </section>
   );
 }

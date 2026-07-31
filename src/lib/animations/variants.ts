@@ -203,3 +203,36 @@ export const scaleIn: Variants = {
     },
   },
 };
+
+// Inverted reveal scroller for images
+export const invertedReveal: Variants = {
+  hidden: { opacity: 0, y: 30, scaleY: 0.8, transformOrigin: 'bottom' },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scaleY: 1,
+    transformOrigin: 'bottom',
+    transition: {
+      duration: 0.8,
+      ease: EASING.cinematic,
+    },
+  },
+};
+
+// Sticky stacking on scroll
+export const stickyStacking: Variants = {
+  hidden: { 
+    opacity: 0, 
+    y: 100,
+    scale: 0.9,
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.6,
+      ease: EASING.luxury,
+    },
+  },
+};
