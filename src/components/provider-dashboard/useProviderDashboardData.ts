@@ -132,6 +132,25 @@ export function useProviderDashboardData() {
 
     const fetchProfile = async () => {
 
+      // Check for authentication token before making API calls
+      const token = localStorage.getItem("token");
+      const cookieToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("token="))
+        ?.split("=")[1];
+
+      if (!token && !cookieToken) {
+        // Clear all stale data before redirect
+        setProfile(null);
+        setStats(initialStats);
+        setRequests([]);
+        setBookings([]);
+        setRecentActivity([]);
+        setPaymentHistory([]);
+        window.location.href = "/signin/provider";
+        return;
+      }
+
       try {
 
         const userProfile = await apiRequest<UserMeResponse>("/users/me");
@@ -160,6 +179,7 @@ export function useProviderDashboardData() {
 
         ) {
 
+          // Clear all data and redirect on authentication failure
           localStorage.removeItem("token");
 
           localStorage.removeItem("user");
@@ -167,6 +187,13 @@ export function useProviderDashboardData() {
           document.cookie =
 
             "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+          setProfile(null);
+          setStats(initialStats);
+          setRequests([]);
+          setBookings([]);
+          setRecentActivity([]);
+          setPaymentHistory([]);
 
           window.location.href = "/signin/provider";
 
@@ -191,6 +218,25 @@ export function useProviderDashboardData() {
   React.useEffect(() => {
 
     const fetchDashboardData = async () => {
+
+      // Check for authentication token before making API calls
+      const token = localStorage.getItem("token");
+      const cookieToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("token="))
+        ?.split("=")[1];
+
+      if (!token && !cookieToken) {
+        // Clear all stale data before redirect
+        setProfile(null);
+        setStats(initialStats);
+        setRequests([]);
+        setBookings([]);
+        setRecentActivity([]);
+        setPaymentHistory([]);
+        window.location.href = "/signin/provider";
+        return;
+      }
 
       try {
 
@@ -217,10 +263,17 @@ export function useProviderDashboardData() {
             lowerMessage.includes("token") ||
             lowerMessage.includes("forbidden")
           ) {
+            // Clear all data and redirect on authentication failure
             localStorage.removeItem("token");
             localStorage.removeItem("user");
             document.cookie =
               "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            setProfile(null);
+            setStats(initialStats);
+            setRequests([]);
+            setBookings([]);
+            setRecentActivity([]);
+            setPaymentHistory([]);
             window.location.href = "/signin/provider";
           }
         }
@@ -327,10 +380,17 @@ export function useProviderDashboardData() {
             lowerMessage.includes("token") ||
             lowerMessage.includes("forbidden")
           ) {
+            // Clear all data and redirect on authentication failure
             localStorage.removeItem("token");
             localStorage.removeItem("user");
             document.cookie =
               "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            setProfile(null);
+            setStats(initialStats);
+            setRequests([]);
+            setBookings([]);
+            setRecentActivity([]);
+            setPaymentHistory([]);
             window.location.href = "/signin/provider";
           }
         }
@@ -348,10 +408,17 @@ export function useProviderDashboardData() {
             lowerMessage.includes("token") ||
             lowerMessage.includes("forbidden")
           ) {
+            // Clear all data and redirect on authentication failure
             localStorage.removeItem("token");
             localStorage.removeItem("user");
             document.cookie =
               "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            setProfile(null);
+            setStats(initialStats);
+            setRequests([]);
+            setBookings([]);
+            setRecentActivity([]);
+            setPaymentHistory([]);
             window.location.href = "/signin/provider";
           }
         }
@@ -451,6 +518,25 @@ export function useProviderDashboardData() {
   // Polling for real-time updates
   React.useEffect(() => {
     const pollInterval = setInterval(async () => {
+      // Check for authentication token before making API calls
+      const token = localStorage.getItem("token");
+      const cookieToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("token="))
+        ?.split("=")[1];
+
+      if (!token && !cookieToken) {
+        // Clear all stale data before redirect
+        setProfile(null);
+        setStats(initialStats);
+        setRequests([]);
+        setBookings([]);
+        setRecentActivity([]);
+        setPaymentHistory([]);
+        window.location.href = "/signin/provider";
+        return;
+      }
+
       try {
         // Refresh service requests
         const serviceRequests = (await fetchServiceRequestsForProvider()) as ServiceRequest[];

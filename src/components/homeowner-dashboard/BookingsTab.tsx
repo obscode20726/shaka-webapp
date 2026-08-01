@@ -55,7 +55,7 @@ export default function BookingsTab({
       "";
 
     if (phoneNumber) {
-      window.open(`https://wa.me/${phoneNumber.replace(/\D/g, "")}`, "_blank");
+      window.open(`https://wa.me/${phoneNumber.replace(/\D/g, "")}`, "_blank", "noopener,noreferrer");
     } else {
       setActionMessage({ type: "error", text: "Provider contact not available" });
     }
@@ -81,10 +81,22 @@ export default function BookingsTab({
   const handleReschedule = async (newDate: string) => {
     if (!rescheduleBooking) return;
 
+    // Validate newScheduledAt before processing
+    if (!newDate || newDate.trim() === "") {
+      setActionMessage({ type: "error", text: "Please select a date and time for rescheduling" });
+      return;
+    }
+
+    const parsedDate = new Date(newDate);
+    if (isNaN(parsedDate.getTime())) {
+      setActionMessage({ type: "error", text: "Invalid date format. Please select a valid date and time" });
+      return;
+    }
+
     setIsProcessing(true);
     try {
       // Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO timestamp
-      const isoTimestamp = new Date(newDate).toISOString();
+      const isoTimestamp = parsedDate.toISOString();
       await rescheduleBookingApi({
         bookingId: rescheduleBooking.id,
         newScheduledAt: isoTimestamp,
@@ -321,7 +333,7 @@ export default function BookingsTab({
               </button>
               <button
                 onClick={() => handleReschedule(newScheduledAt)}
-                disabled={isProcessing}
+                disabled={isProcessing || !newScheduledAt || newScheduledAt.trim() === "" || isNaN(new Date(newScheduledAt).getTime())}
                 className="flex-1 rounded-lg bg-[#ff6b00] px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {isProcessing ? "Rescheduling..." : "Confirm Reschedule"}

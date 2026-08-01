@@ -171,15 +171,6 @@ function MobileStackedCards({ steps }: { steps: Step[] }) {
 export default function StackedStepCards({ steps }: StackedStepCardsProps) {
   const shouldReduceMotion = useReducedMotion();
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!isMounted) {
-    return null;
-  }
 
   if (shouldReduceMotion || !isMobile) {
     return (

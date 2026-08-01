@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { isValidRwandanMobile } from "@/lib/phone";
 import {
   createServiceRequest,
@@ -42,7 +43,7 @@ type BookingForm = {
 };
 
 type Props = {
-  onBackToDashboard: () => void;
+  onClose: () => void;
 };
 
 const steps = ["Service", "Location", "Provider", "Details"];
@@ -117,7 +118,8 @@ function filterProvidersForBooking(
   });
 }
 
-export default function BookingFlow({ onBackToDashboard }: Props) {
+export default function PublicBookingFlow({ onClose }: Props) {
+  const router = useRouter();
   const [step, setStep] = React.useState(1);
   const [isComplete, setIsComplete] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -127,6 +129,34 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
   const [allProviders, setAllProviders] = React.useState<ProviderProfile[]>([]);
   const [catalogLoading, setCatalogLoading] = React.useState(true);
   const [catalogError, setCatalogError] = React.useState("");
+
+  // Check for pending booking data on mount
+  React.useEffect(() => {
+    const pendingBooking = sessionStorage.getItem("pendingBooking");
+    if (pendingBooking) {
+      try {
+        const parsed = JSON.parse(pendingBooking);
+        // Merge parsed data with initialForm, coercing all values to strings
+        const mergedForm: BookingForm = {
+          ...initialForm,
+          service: parsed.service != null ? String(parsed.service) : initialForm.service,
+          city: parsed.city != null ? String(parsed.city) : initialForm.city,
+          address: parsed.address != null ? String(parsed.address) : initialForm.address,
+          providerId: parsed.providerId != null ? String(parsed.providerId) : initialForm.providerId,
+          date: parsed.date != null ? String(parsed.date) : initialForm.date,
+          time: parsed.time != null ? String(parsed.time) : initialForm.time,
+          description: parsed.description != null ? String(parsed.description) : initialForm.description,
+          fullName: parsed.fullName != null ? String(parsed.fullName) : initialForm.fullName,
+          phone: parsed.phone != null ? String(parsed.phone) : initialForm.phone,
+          email: parsed.email != null ? String(parsed.email) : initialForm.email,
+        };
+        setForm(mergedForm);
+        setStep(4); // Jump to details step
+      } catch (err) {
+        sessionStorage.removeItem("pendingBooking");
+      }
+    }
+  }, []);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -184,9 +214,13 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
     (service) => service.value === form.service,
   );
 
-  const selectedProvider =
-    availableProviders.find((provider) => provider.id === form.providerId) ||
-    null;
+  const selectedProvider = React.useMemo(
+    () => {
+      const provider = allProviders.find((p) => p.id === form.providerId);
+      return provider ? mapProvider(provider) : null;
+    },
+    [allProviders, form.providerId],
+  );
 
   // Validation for each step
   const isStepValid = React.useMemo(() => {
@@ -224,13 +258,38 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
       return;
     }
     if (step === 1) {
-      onBackToDashboard();
+      // Clear pending booking when user cancels
+      sessionStorage.removeItem("pendingBooking");
+      sessionStorage.removeItem("pendingBookingReturn");
+      onClose();
       return;
     }
     setStep((current) => Math.max(1, current - 1));
   };
 
+  const checkAuthAndProceed = () => {
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+    
+    if (!token || !user) {
+      // Store booking data for after authentication
+      sessionStorage.setItem("pendingBooking", JSON.stringify(form));
+      sessionStorage.setItem("pendingBookingReturn", window.location.pathname);
+      
+      // Redirect to signin
+      router.push("/signin/homeowner");
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleSubmitBooking = async () => {
+    // Check authentication before proceeding
+    if (!checkAuthAndProceed()) {
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -273,12 +332,28 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
 
       await createServiceRequest(payload);
 
+      // Clear pending booking data
+      sessionStorage.removeItem("pendingBooking");
+      sessionStorage.removeItem("pendingBookingReturn");
+
       setIsComplete(true);
       setLoading(false);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to create booking";
-      setError(errorMessage);
+      
+      // Check if error is about missing homeowner profile
+      if (errorMessage.toLowerCase().includes("homeowner profile") || 
+          errorMessage.toLowerCase().includes("complete your")) {
+        setError("Please complete your homeowner profile first. Redirecting to sign in...");
+        setTimeout(() => {
+          sessionStorage.setItem("pendingBooking", JSON.stringify(form));
+          sessionStorage.setItem("pendingBookingReturn", window.location.pathname);
+          router.push("/signin/homeowner?profile=missing");
+        }, 2000);
+      } else {
+        setError(errorMessage);
+      }
       setLoading(false);
     }
   };
@@ -347,8 +422,14 @@ export default function BookingFlow({ onBackToDashboard }: Props) {
           {isComplete && selectedProvider ? (
             <BookingComplete
               form={form}
-              onDashboard={onBackToDashboard}
+              onClose={onClose}
               provider={selectedProvider}
+              serviceLabel={selectedService?.label || "Service"}
+            />
+          ) : isComplete ? (
+            <BookingCompleteFallback
+              form={form}
+              onClose={onClose}
               serviceLabel={selectedService?.label || "Service"}
             />
           ) : !isComplete && step === 1 ? (
@@ -935,14 +1016,81 @@ function DetailsStep({
   );
 }
 
+function BookingCompleteFallback({
+  form,
+  onClose,
+  serviceLabel,
+}: {
+  form: BookingForm;
+  onClose: () => void;
+  serviceLabel: string;
+}) {
+  return (
+    <Panel className="py-10 text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#02c75a] text-white">
+          ✓
+        </span>
+      </div>
+      <h1 className="mt-7 text-2xl font-semibold text-black">
+        Booking Request Sent!
+      </h1>
+      <p className="mt-2 text-sm text-black/60">
+        Your request has been successfully submitted
+      </p>
+
+      <div className="mx-auto mt-7 max-w-[520px] rounded-xl border border-black/10 bg-white p-6 text-left">
+        <h2 className="text-base font-medium text-black">Booking Summary</h2>
+        <div className="mt-7 flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f0f0f2]">
+            <span className="text-xl">🛠️</span>
+          </div>
+          <div>
+            <p className="font-semibold text-black">{serviceLabel}</p>
+            <p className="text-sm text-black/60">Service requested</p>
+          </div>
+        </div>
+
+        <dl className="mt-5 space-y-3 text-sm">
+          <SummaryRow label="Date:" value={form.date} />
+          <SummaryRow label="Time:" value={form.time} />
+          <SummaryRow
+            label="Location:"
+            value={[form.city, form.address].filter(Boolean).join(", ")}
+          />
+        </dl>
+      </div>
+
+      <div className="mt-7 rounded-lg border border-[#99c2ff] bg-[#e8f1ff] p-4 text-left text-sm text-[#1242c9]">
+        <p className="font-semibold">What happens next?</p>
+        <ul className="mt-2 list-disc space-y-1 pl-4">
+          <li>Your service request will be reviewed</li>
+          <li>You may receive quotes from providers</li>
+          <li>You&apos;ll receive quotes in your dashboard for review</li>
+          <li>Once you approve, payment will be held in escrow</li>
+          <li>Payment is released after work is completed</li>
+        </ul>
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-[#ff6a00] px-5 py-3 text-sm font-medium text-white hover:bg-[#e85f00]"
+      >
+        Back to Home
+      </button>
+    </Panel>
+  );
+}
+
 function BookingComplete({
   form,
-  onDashboard,
+  onClose,
   provider,
   serviceLabel,
 }: {
   form: BookingForm;
-  onDashboard: () => void;
+  onClose: () => void;
   provider: ProviderOption;
   serviceLabel: string;
 }) {
@@ -994,10 +1142,10 @@ function BookingComplete({
 
       <button
         type="button"
-        onClick={onDashboard}
+        onClick={onClose}
         className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-[#ff6a00] px-5 py-3 text-sm font-medium text-white hover:bg-[#e85f00]"
       >
-        Go to Dashboard
+        Back to Home
       </button>
     </Panel>
   );

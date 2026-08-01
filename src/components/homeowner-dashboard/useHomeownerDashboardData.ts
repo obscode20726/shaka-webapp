@@ -33,6 +33,24 @@ export function useHomeownerDashboardData() {
   const [statsLoading, setStatsLoading] = React.useState(true);
 
   const refreshRequests = React.useCallback(async () => {
+    // Check for authentication token before making API calls
+    const token = localStorage.getItem("token");
+    const cookieToken = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("token="))
+      ?.split("=")[1];
+
+    if (!token && !cookieToken) {
+      // Clear all stale data before redirect
+      setProfile(null);
+      setStats(initialStats);
+      setRequests([]);
+      setBookings([]);
+      setPayments([]);
+      window.location.href = "/signin/homeowner";
+      return;
+    }
+
     try {
       const serviceRequests = (await fetchServiceRequests()) as ServiceRequest[];
       setRequests(serviceRequests);
@@ -42,6 +60,24 @@ export function useHomeownerDashboardData() {
   }, []);
 
   const refreshBookings = React.useCallback(async () => {
+    // Check for authentication token before making API calls
+    const token = localStorage.getItem("token");
+    const cookieToken = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("token="))
+      ?.split("=")[1];
+
+    if (!token && !cookieToken) {
+      // Clear all stale data before redirect
+      setProfile(null);
+      setStats(initialStats);
+      setRequests([]);
+      setBookings([]);
+      setPayments([]);
+      window.location.href = "/signin/homeowner";
+      return;
+    }
+
     try {
       const response = await apiRequest("/bookings");
       if (Array.isArray(response)) {
@@ -57,6 +93,24 @@ export function useHomeownerDashboardData() {
   }, [refreshRequests, refreshBookings]);
 
   const refreshProfile = React.useCallback(async () => {
+    // Check for authentication token before making API calls
+    const token = localStorage.getItem("token");
+    const cookieToken = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("token="))
+      ?.split("=")[1];
+
+    if (!token && !cookieToken) {
+      // Clear all stale data before redirect
+      setProfile(null);
+      setStats(initialStats);
+      setRequests([]);
+      setBookings([]);
+      setPayments([]);
+      window.location.href = "/signin/homeowner";
+      return;
+    }
+
     try {
       const userProfile = await apiRequest<UserMeResponse>("/users/me");
       setProfile(userProfile.homeownerProfile ?? null);
@@ -67,6 +121,24 @@ export function useHomeownerDashboardData() {
 
   React.useEffect(() => {
     const fetchProfile = async () => {
+      // Check for authentication token before making API calls
+      const token = localStorage.getItem("token");
+      const cookieToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("token="))
+        ?.split("=")[1];
+
+      if (!token && !cookieToken) {
+        // Clear all stale data before redirect
+        setProfile(null);
+        setStats(initialStats);
+        setRequests([]);
+        setBookings([]);
+        setPayments([]);
+        window.location.href = "/signin/homeowner";
+        return;
+      }
+
       try {
         const userProfile = await apiRequest<UserMeResponse>("/users/me");
         setProfile(userProfile.homeownerProfile ?? null);
@@ -81,10 +153,16 @@ export function useHomeownerDashboardData() {
           lowerMessage.includes("token") ||
           lowerMessage.includes("forbidden")
         ) {
+          // Clear all data and redirect on authentication failure
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           document.cookie =
             "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          setProfile(null);
+          setStats(initialStats);
+          setRequests([]);
+          setBookings([]);
+          setPayments([]);
           window.location.href = "/signin/homeowner";
         }
       } finally {
@@ -97,6 +175,24 @@ export function useHomeownerDashboardData() {
 
   React.useEffect(() => {
     const fetchDashboardData = async () => {
+      // Check for authentication token before making API calls
+      const token = localStorage.getItem("token");
+      const cookieToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("token="))
+        ?.split("=")[1];
+
+      if (!token && !cookieToken) {
+        // Clear all stale data before redirect
+        setProfile(null);
+        setStats(initialStats);
+        setRequests([]);
+        setBookings([]);
+        setPayments([]);
+        window.location.href = "/signin/homeowner";
+        return;
+      }
+
       try {
         setStatsLoading(true);
 

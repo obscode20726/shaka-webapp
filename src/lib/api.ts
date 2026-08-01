@@ -734,6 +734,18 @@ export interface CreateServiceRequestPayload {
 
 
 
+  fullName?: string;
+
+
+
+  phone?: string;
+
+
+
+  email?: string;
+
+
+
 }
 
 
@@ -3318,7 +3330,7 @@ const shouldSendAuth = true;
 
 const uploadProfileImageInternal = async (
   file: File,
-  options: { checkApiUrl: boolean; useAuthGuard: boolean }
+  options: { checkApiUrl: boolean; useAuthGuard: boolean; endpoint: string }
 ): Promise<{ profileImageUrl?: string }> => {
   const formData = new FormData();
   formData.append("image", file);
@@ -3328,7 +3340,7 @@ const uploadProfileImageInternal = async (
   }
 
   const token = !USE_PROXY ? localStorage.getItem("token") : null;
-  const url = buildApiUrl("/api/v1/provider/profile-image");
+  const url = buildApiUrl(options.endpoint);
 
   const res = await fetch(url, {
     method: "POST",
@@ -3358,7 +3370,7 @@ const uploadProfileImageInternal = async (
 };
 
 export const uploadProfilePicture = async (file: File): Promise<{ url?: string }> => {
-  const result = await uploadProfileImageInternal(file, { checkApiUrl: true, useAuthGuard: true });
+  const result = await uploadProfileImageInternal(file, { checkApiUrl: true, useAuthGuard: true, endpoint: "/api/v1/provider/profile-image" });
   return { url: result.profileImageUrl };
 };
 
@@ -3672,36 +3684,17 @@ export const updateHomeownerProfile = async (
 };
 
 export const updateHomeownerProfileImage = async (imageFile: File): Promise<{ success: boolean; imageUrl?: string }> => {
-  const formData = new FormData();
-  formData.append('image', imageFile);
-
-  const url = buildApiUrl("/api/v1/homeowner/profile-image");
-  const token = !USE_PROXY ? localStorage.getItem("token") : null;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || `Failed to upload image: ${res.status}`);
+  try {
+    const result = await uploadProfileImageInternal(imageFile, { checkApiUrl: false, useAuthGuard: false, endpoint: "/api/v1/homeowner/profile-image" });
+    return { success: true, imageUrl: result.profileImageUrl };
+  } catch {
+    return { success: false };
   }
-
-  const data = await res.json();
-  // Handle the actual response structure from the server
-  if (data.profileImageUrl) {
-    return { success: true, imageUrl: data.profileImageUrl };
-  }
-  return { success: false };
 };
 
 export const updateProviderProfileImage = async (imageFile: File): Promise<{ success: boolean; imageUrl?: string }> => {
   try {
-    const result = await uploadProfileImageInternal(imageFile, { checkApiUrl: false, useAuthGuard: false });
+    const result = await uploadProfileImageInternal(imageFile, { checkApiUrl: false, useAuthGuard: false, endpoint: "/api/v1/provider/profile-image" });
     return { success: true, imageUrl: result.profileImageUrl };
   } catch {
     return { success: false };

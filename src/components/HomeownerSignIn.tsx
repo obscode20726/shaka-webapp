@@ -71,8 +71,17 @@ export default function HomeownerSignIn() {
         : "";
       document.cookie = `${baseCookie}${expires}${isHttps ? "; Secure" : ""}`;
 
-      // ✅ FIXED redirect
-      router.push("/homeowner/dashboard");
+      // Check if there's a pending booking return URL
+      const pendingBookingReturn = sessionStorage.getItem("pendingBookingReturn");
+      if (pendingBookingReturn) {
+        sessionStorage.removeItem("pendingBookingReturn");
+        // Validate: accept only internal paths with exactly one leading slash
+        const isValidInternalPath = /^\/[^\/]/.test(pendingBookingReturn) &&
+          !pendingBookingReturn.includes('://');
+        router.push(isValidInternalPath ? pendingBookingReturn : "/homeowner/dashboard");
+      } else {
+        router.push("/homeowner/dashboard");
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Login failed";
       setError(message);

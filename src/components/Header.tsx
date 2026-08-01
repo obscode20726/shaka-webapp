@@ -2,7 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, useReducedMotion } from "framer-motion";
 
 const navLinks = [
   { href: "#", label: "Search" },
@@ -15,12 +15,19 @@ const navLinks = [
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const { scrollY } = useScroll();
-  
+  const prefersReducedMotion = useReducedMotion();
+
   // Header shrinks on scroll down, expands on scroll up
   const headerHeight = useTransform(scrollY, [0, 100], [64, 56]);
   const headerPadding = useTransform(scrollY, [0, 100], ['1rem', '0.75rem']);
   const logoScale = useTransform(scrollY, [0, 100], [1, 0.9]);
   const headerOpacity = useTransform(scrollY, [0, 50], [1, 0.95]);
+
+  // Use static values when reduced motion is enabled
+  const staticHeaderHeight = 64;
+  const staticHeaderPadding = '1rem';
+  const staticLogoScale = 1;
+  const staticHeaderOpacity = 1;
 
   const closeMenu = () => setIsMenuOpen(false);
 
@@ -28,15 +35,16 @@ export default function Header() {
     <motion.header 
       className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b border-black/[.06]"
       style={{
-        height: isMenuOpen ? 'auto' : headerHeight,
-        opacity: headerOpacity,
+        height: 'auto',
+        minHeight: isMenuOpen ? 'auto' : (prefersReducedMotion ? staticHeaderHeight : headerHeight),
+        opacity: prefersReducedMotion ? staticHeaderOpacity : headerOpacity,
       }}
     >
       <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-8">
         <motion.div 
           className="flex items-center justify-between"
           style={{
-            padding: headerPadding,
+            padding: prefersReducedMotion ? staticHeaderPadding : headerPadding,
           }}
         >
           <Link
@@ -44,7 +52,7 @@ export default function Header() {
             className="flex items-center gap-2 select-none"
             onClick={closeMenu}
           >
-            <motion.div style={{ scale: logoScale }}>
+            <motion.div style={{ scale: prefersReducedMotion ? staticLogoScale : logoScale }}>
               <Image
                 src="/Shaka logo 1.svg"
                 alt="Shaka"

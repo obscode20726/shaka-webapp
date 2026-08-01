@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
+import { useRouter } from "next/navigation";
 import { apiRequest, type AuthTokenResponse } from "@/lib/api";
 // import SignupOtpVerification from "@/components/SignupOtpVerification";
 import {
@@ -26,6 +27,7 @@ function isValidEmail(value: string) {
 }
 
 export default function HomeownerRegistration() {
+  const router = useRouter();
   const [step, setStep] = React.useState<Step>(1);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -152,7 +154,14 @@ export default function HomeownerRegistration() {
         body: JSON.stringify(buildHomeownerProfilePayload()),
       });
 
-      setStep(5);
+      // Check if there's a pending booking
+      const pendingBookingReturn = sessionStorage.getItem("pendingBookingReturn");
+      if (pendingBookingReturn) {
+        sessionStorage.removeItem("pendingBookingReturn");
+        router.push(pendingBookingReturn);
+      } else {
+        setStep(5);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {
