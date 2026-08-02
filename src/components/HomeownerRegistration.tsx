@@ -158,7 +158,12 @@ export default function HomeownerRegistration() {
       const pendingBookingReturn = sessionStorage.getItem("pendingBookingReturn");
       if (pendingBookingReturn) {
         sessionStorage.removeItem("pendingBookingReturn");
-        router.push(pendingBookingReturn);
+        // Special handling for booking flow - redirect to home page to trigger modal
+        if (pendingBookingReturn === "booking-flow") {
+          router.push("/");
+        } else {
+          router.push(pendingBookingReturn);
+        }
       } else {
         setStep(5);
       }
