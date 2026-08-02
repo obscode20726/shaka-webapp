@@ -30,6 +30,7 @@ type ProviderOption = {
 
 type BookingForm = {
   service: string;
+  serviceId: string;
   city: string;
   address: string;
   providerId: string;
@@ -57,6 +58,7 @@ const serviceIcons: Record<string, string> = {
 
 const initialForm: BookingForm = {
   service: "",
+  serviceId: "",
   city: "",
   address: "",
   providerId: "",
@@ -128,6 +130,7 @@ export default function PublicBookingFlow({ onClose }: Props) {
   const [allProviders, setAllProviders] = React.useState<ProviderProfile[]>([]);
   const [catalogLoading, setCatalogLoading] = React.useState(true);
   const [catalogError, setCatalogError] = React.useState("");
+  const [autoSubmitPending, setAutoSubmitPending] = React.useState(false);
 
   // Check for pending booking data on mount
   React.useEffect(() => {
@@ -139,6 +142,7 @@ export default function PublicBookingFlow({ onClose }: Props) {
         const mergedForm: BookingForm = {
           ...initialForm,
           service: parsed.service != null ? String(parsed.service) : initialForm.service,
+          serviceId: parsed.serviceId != null ? String(parsed.serviceId) : initialForm.serviceId,
           city: parsed.city != null ? String(parsed.city) : initialForm.city,
           address: parsed.address != null ? String(parsed.address) : initialForm.address,
           providerId: parsed.providerId != null ? String(parsed.providerId) : initialForm.providerId,
@@ -151,11 +155,26 @@ export default function PublicBookingFlow({ onClose }: Props) {
         };
         setForm(mergedForm);
         setStep(4); // Jump to details step
+        
+        // Set auto-submit flag if user was authenticated and ready to book
+        if (parsed.autoSubmit) {
+          setAutoSubmitPending(true);
+        }
       } catch (err) {
         sessionStorage.removeItem("pendingBooking");
       }
     }
   }, []);
+
+  // Auto-submit when form is ready and auto-submit is pending
+  React.useEffect(() => {
+    if (autoSubmitPending && form.serviceId && form.providerId && form.date && form.time) {
+      setAutoSubmitPending(false);
+      setTimeout(() => {
+        handleSubmitBooking();
+      }, 500);
+    }
+  }, [autoSubmitPending, form]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -243,7 +262,15 @@ export default function PublicBookingFlow({ onClose }: Props) {
   const update = (key: keyof BookingForm, value: string) => {
     setForm((current) => {
       const next = { ...current, [key]: value };
-      if (key === "service" || key === "city") {
+      if (key === "service") {
+        next.providerId = "";
+        // Also update serviceId when service changes
+        const selectedService = services.find((s) => s.value === value);
+        if (selectedService) {
+          next.serviceId = selectedService.serviceId;
+        }
+      }
+      if (key === "city") {
         next.providerId = "";
       }
       return next;
@@ -271,9 +298,9 @@ export default function PublicBookingFlow({ onClose }: Props) {
     const user = localStorage.getItem("user");
     
     if (!token || !user) {
-      // Store booking data for after authentication
-      sessionStorage.setItem("pendingBooking", JSON.stringify(form));
-      sessionStorage.setItem("pendingBookingReturn", window.location.pathname);
+      // Store booking data for after authentication with auto-submit flag
+      sessionStorage.setItem("pendingBooking", JSON.stringify({ ...form, autoSubmit: true }));
+      sessionStorage.setItem("pendingBookingReturn", "booking-flow");
       
       // Redirect to signin
       router.push("/signin/homeowner");
@@ -293,8 +320,7 @@ export default function PublicBookingFlow({ onClose }: Props) {
     setError("");
 
     try {
-      const service = selectedService;
-      if (!service) {
+      if (!form.serviceId) {
         throw new Error("Please select a service.");
       }
       if (!form.providerId) {
@@ -320,7 +346,7 @@ export default function PublicBookingFlow({ onClose }: Props) {
       }
 
       const payload: CreateServiceRequestPayload = {
-        serviceId: service.serviceId,
+        serviceId: form.serviceId,
         providerId: form.providerId,
         city: form.city,
         address: form.address || undefined,
@@ -347,7 +373,7 @@ export default function PublicBookingFlow({ onClose }: Props) {
         setError("Please complete your homeowner profile first. Redirecting to sign in...");
         setTimeout(() => {
           sessionStorage.setItem("pendingBooking", JSON.stringify(form));
-          sessionStorage.setItem("pendingBookingReturn", window.location.pathname);
+          sessionStorage.setItem("pendingBookingReturn", "booking-flow");
           router.push("/signin/homeowner?profile=missing");
         }, 2000);
       } else {

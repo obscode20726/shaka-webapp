@@ -75,10 +75,15 @@ export default function HomeownerSignIn() {
       const pendingBookingReturn = sessionStorage.getItem("pendingBookingReturn");
       if (pendingBookingReturn) {
         sessionStorage.removeItem("pendingBookingReturn");
-        // Validate: accept only internal paths with exactly one leading slash
-        const isValidInternalPath = /^\/[^\/]/.test(pendingBookingReturn) &&
-          !pendingBookingReturn.includes('://');
-        router.push(isValidInternalPath ? pendingBookingReturn : "/homeowner/dashboard");
+        // Special handling for booking flow - redirect to home page to trigger modal
+        if (pendingBookingReturn === "booking-flow") {
+          router.push("/");
+        } else {
+          // Validate: accept only internal paths with exactly one leading slash
+          const isValidInternalPath = /^\/[^\/]/.test(pendingBookingReturn) &&
+            !pendingBookingReturn.includes('://');
+          router.push(isValidInternalPath ? pendingBookingReturn : "/homeowner/dashboard");
+        }
       } else {
         router.push("/homeowner/dashboard");
       }
