@@ -10,7 +10,6 @@ import {
   useTransform,
 } from "framer-motion";
 import {
-  cardVariants,
   cardHoverVariants,
   invertedReveal,
   stickyStacking,

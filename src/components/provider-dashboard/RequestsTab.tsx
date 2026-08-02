@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import {
   formatAcceptedStatus,
   formatRequestLocation,
@@ -7,7 +8,6 @@ import {
   parseHomeownerName,
 } from "./formatters";
 import type { ServiceRequest } from "./types";
-import { updateServiceRequestStatus } from "@/lib/api";
 
 type Props = {
   acceptedRequests: ServiceRequest[];
@@ -337,7 +337,7 @@ function CustomerAvatar({
   if (profileImageUrl) {
     return (
       <div className="flex h-10 w-10 shrink-0 overflow-hidden rounded-full">
-        <img src={profileImageUrl} alt={name} className="h-full w-full object-cover" />
+        <Image src={profileImageUrl} alt={name} width={40} height={40} className="h-full w-full object-cover" />
       </div>
     );
   }

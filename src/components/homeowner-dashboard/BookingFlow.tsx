@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { isValidRwandanMobile } from "@/lib/phone";
 import {
   createServiceRequest,
   fetchProviders,
@@ -732,7 +731,7 @@ function DetailsStep({
   const [isRecording, setIsRecording] = React.useState(false);
   const [selectedLanguage, setSelectedLanguage] = React.useState("en-US");
   const accumulatedTranscriptRef = React.useRef("");
-  const recognitionRef = React.useRef<any>(null);
+  const recognitionRef = React.useRef<SpeechRecognition | null>(null);
 
   // Cleanup on unmount: abort recognition and clear recording state
   React.useEffect(() => {
@@ -782,7 +781,12 @@ function DetailsStep({
       return;
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionConstructor) {
+      alert('Speech recognition is not available in your browser.');
+      return;
+    }
 
     if (isRecording && recognitionRef.current) {
       recognitionRef.current.stop();
@@ -793,21 +797,18 @@ function DetailsStep({
     // Start fresh with accumulated transcript
     accumulatedTranscriptRef.current = form.description;
 
-    const recognition = new SpeechRecognition();
+    const recognition = new SpeechRecognitionConstructor();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = selectedLanguage;
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
       let finalTranscript = '';
-      let interimTranscript = '';
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
           finalTranscript += transcript + ' ';
-        } else {
-          interimTranscript += transcript;
         }
       }
 
@@ -819,7 +820,7 @@ function DetailsStep({
       }
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.error('Speech recognition error:', event.error);
       setIsRecording(false);
     };
@@ -1003,44 +1004,6 @@ function BookingComplete({
   );
 }
 
-function TextField({
-  inputMode,
-  label,
-  onChange,
-  onBlur,
-  placeholder,
-  type = "text",
-  value,
-  ariaInvalid,
-  ariaDescribedby,
-}: {
-  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
-  label: string;
-  onChange: (value: string) => void;
-  onBlur?: () => void;
-  placeholder: string;
-  type?: React.HTMLInputTypeAttribute;
-  value: string;
-  ariaInvalid?: boolean;
-  ariaDescribedby?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="text-sm font-medium text-black">{label}</span>
-      <input
-        type={type}
-        inputMode={inputMode}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onBlur={onBlur}
-        placeholder={placeholder}
-        aria-invalid={ariaInvalid}
-        aria-describedby={ariaDescribedby}
-        className="mt-1 w-full rounded-lg border-0 bg-[#f0f0f2] px-3 py-2.5 text-sm outline-none placeholder:text-black/40"
-      />
-    </label>
-  );
-}
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (

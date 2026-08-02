@@ -5,6 +5,7 @@ import {
   statusClassName,
 } from "./formatters";
 import type React from "react";
+import Image from "next/image";
 import { useState } from "react";
 import type { Booking, ServiceRequest } from "./types";
 import RatingModal from "./RatingModal";
@@ -128,21 +129,6 @@ export default function BookingsTab({
     }
   };
 
-  const handleCancelRequest = async () => {
-    if (!cancelRequestItem) return;
-
-    setIsProcessing(true);
-    try {
-      await cancelServiceRequest(cancelRequestItem.id);
-      setActionMessage({ type: "success", text: "Service request cancelled successfully" });
-      setCancelRequestItem(null);
-      onRefresh?.();
-    } catch (error) {
-      setActionMessage({ type: "error", text: error instanceof Error ? error.message : "Failed to cancel request" });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   return (
     <div className="mt-6 space-y-5">
@@ -172,9 +158,11 @@ export default function BookingsTab({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   {booking.provider?.profileImageUrl && (
-                    <img
+                    <Image
                       src={booking.provider.profileImageUrl}
                       alt={fullName(booking.provider)}
+                      width={40}
+                      height={40}
                       className="h-10 w-10 rounded-full object-cover"
                     />
                   )}
@@ -220,9 +208,11 @@ export default function BookingsTab({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   {request.provider?.profileImageUrl && (
-                    <img
+                    <Image
                       src={request.provider.profileImageUrl}
                       alt={fullName(request.provider)}
+                      width={40}
+                      height={40}
                       className="h-10 w-10 rounded-full object-cover"
                     />
                   )}
@@ -276,9 +266,11 @@ export default function BookingsTab({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   {request.provider?.profileImageUrl && (
-                    <img
+                    <Image
                       src={request.provider.profileImageUrl}
                       alt={fullName(request.provider)}
+                      width={40}
+                      height={40}
                       className="h-10 w-10 rounded-full object-cover"
                     />
                   )}

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { uploadProfilePicture, uploadPortfolioImage, fetchPaymentMethods, addPaymentMethod, deletePaymentMethod, setDefaultPaymentMethod, type AddPaymentMethodPayload, type PaymentMethod } from "@/lib/api";
 import type { ProviderProfile } from "./types";
 
@@ -225,9 +226,11 @@ export default function ProfileTab({ profile }: Props) {
               {/* Preview circle */}
               <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full bg-black/8">
                 {profileImage ? (
-                  <img
+                  <Image
                     src={profileImage}
                     alt="Profile"
+                    width={80}
+                    height={80}
                     className="h-20 w-20 rounded-full object-cover"
                   />
                 ) : (
@@ -330,9 +333,11 @@ export default function ProfileTab({ profile }: Props) {
                   key={i}
                   className="relative h-20 w-20 overflow-hidden rounded-xl"
                 >
-                  <img
+                  <Image
                     src={src}
                     alt={`Portfolio ${i + 1}`}
+                    width={80}
+                    height={80}
                     className="h-full w-full object-cover"
                   />
                   <button

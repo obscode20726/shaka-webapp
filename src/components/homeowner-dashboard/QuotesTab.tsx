@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { statusClassName } from "./formatters";
 import type { ServiceRequest } from "./types";
 import PaymentModal from "./PaymentModal";
@@ -157,9 +158,11 @@ export default function QuotesTab({ requests, statsLoading, onRequestUpdate }: P
                   {request.provider ? (
                     <div className="mt-2 flex items-center gap-2">
                       {request.provider.profileImageUrl && (
-                        <img
+                        <Image
                           src={request.provider.profileImageUrl}
                           alt={`${request.provider.firstName} ${request.provider.lastName}`}
+                          width={32}
+                          height={32}
                           className="h-8 w-8 rounded-full object-cover"
                         />
                       )}

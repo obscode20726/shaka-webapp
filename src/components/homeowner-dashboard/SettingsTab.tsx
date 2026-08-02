@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import type { HomeownerProfile } from "./types";
 import { updateHomeownerProfile, updateHomeownerProfileImage } from "@/lib/api";
 
@@ -312,7 +313,7 @@ export default function SettingsTab({ loading, profile, onProfileUpdate }: Props
             className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-[#e8eaef] text-2xl font-semibold text-black/45 overflow-hidden"
           >
             {profileImageUrl ? (
-              <img src={profileImageUrl} alt="Profile" className="h-full w-full object-cover" />
+              <Image src={profileImageUrl} alt="Profile" width={96} height={96} className="h-full w-full object-cover" />
             ) : (
               formData.firstName ? formData.firstName[0] : "U"
             )}
